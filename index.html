@@ -571,8 +571,8 @@
         <p>เครื่องมือตรวจสอบจุดอ่อนซอร์สโค้ด ไลบรารี และการตั้งค่าความปลอดภัยของเว็บแอปพลิเคชัน</p>
       </div>
       <div class="badges">
-        <span class="badge-pill">OWASP Top 10 + CVSS v3.1 + Apps Script</span>
-        <span class="badge-pill" id="runtime-mode-badge">กำลังตรวจสอบโหมด...</span>
+        <span class="badge-pill">Standalone Pro Auditor • 100% Browser Engine</span>
+        <span class="badge-pill">OWASP Top 10 + CVSS v3.1 + AI Prompt</span>
       </div>
     </header>
 
@@ -596,14 +596,15 @@
 
       <div id="code-tab" class="tab-content">
         <div class="input-row">
-          <input type="text" id="code-path-input" class="grow" placeholder="ระบุ Path (เมื่อรัน Python) หรือกด 'เลือกโฟลเดอร์...' เพื่อเลือกจากเบราว์เซอร์" />
+          <input type="text" id="code-path-input" class="grow" readonly placeholder="เลือกโฟลเดอร์โปรเจกต์ หรือเลือกไฟล์โค้ดจากเครื่องของคุณเพื่อตรวจสอบทันที" />
           <input type="file" id="browser-folder-input" webkitdirectory directory multiple style="display:none;" />
-          <button class="btn btn-secondary" id="browse-btn" type="button">📁 เลือกโฟลเดอร์...</button>
-          <button class="btn btn-primary" id="scan-code-btn" type="button">🔍 เริ่มสแกนโค้ด</button>
+          <input type="file" id="browser-files-input" multiple accept=".py,.gs,.js,.ts,.jsx,.tsx,.html,.htm,.php,.env,.json,.yml,.yaml,.txt,Dockerfile" style="display:none;" />
+          <button class="btn btn-primary" id="browse-folder-btn" type="button">📁 เลือกโฟลเดอร์โปรเจกต์...</button>
+          <button class="btn btn-secondary" id="browse-files-btn" type="button">📄 เลือกไฟล์โค้ด (.py, .gs, .html, .js, .json)...</button>
           <button class="btn btn-demo" id="scan-demo-btn" type="button">⚡ ทดลองสแกนโปรเจกต์ตัวอย่าง (Demo)</button>
         </div>
         <div class="hint">
-          รองรับไฟล์ <code>.py</code>, <code>.gs</code> (Apps Script), <code>.js</code>, <code>.ts</code>, <code>.jsx</code>, <code>.tsx</code>, <code>.html</code>, <code>.php</code>, <code>.env</code>, <code>appsscript.json</code>, <code>requirements.txt</code>, <code>package.json</code>, <code>Dockerfile</code>
+          สแกนในเบราว์เซอร์ 100% ไม่ส่งโค้ดออกจากเครื่อง • รองรับ <code>.py</code>, <code>.gs</code> (Apps Script), <code>.js</code>, <code>.ts</code>, <code>.jsx</code>, <code>.tsx</code>, <code>.html</code>, <code>.php</code>, <code>.env</code>, <code>appsscript.json</code>, <code>requirements.txt</code>, <code>package.json</code>, <code>Dockerfile</code>
         </div>
       </div>
 
@@ -729,7 +730,7 @@
     </div>
   </div>
 
-  <script>
+  <script id="auditor-engine-script">
     /* =========================================================================
        Client-Side Vulnerability Scanner Engine (GitHub Pages / Static Fallback)
        ========================================================================= */
@@ -901,7 +902,7 @@
         {
           rule_id: "INJ-002", severity: "CRITICAL", category: "Code Execution", cwe: "CWE-94", extensions: [".py", ".js", ".gs", ".ts", ".jsx", ".tsx", ".php"],
           title: "การใช้ eval() หรือ exec() ซึ่งเสี่ยงต่อการรันโค้ดอันตราย",
-          pattern: /\b(?:eval|exec|new\s+Function)\s*\(/,
+          pattern: /(?<!\.)\b(?:eval|exec)\s*\(|\bnew\s+Function\s*\(/,
           description: "ฟังก์ชัน eval() หรือ exec() ประมวลผลสตริงเป็นโค้ดทันที เสี่ยงต่อ Remote Code Execution",
           remediation: "หลีกเลี่ยง eval/exec และใช้ JSON.parse() หรือ json.loads() แทน",
         },
@@ -1120,15 +1121,27 @@
           }
         });
 
-        // Python quick quality checks (QA-001, QA-002)
+        // Python quality & multi-line taint tracking checks (QA-001, QA-002, QA-004, Taint Sinks)
         if (extLower === ".py") {
+          const taintedVars = new Set();
+          const taintSrcPattern = /\b(?:request\.(?:args|form|values|json|data|cookies|headers|get_json)|sys\.argv|input\s*\()/;
+          const isExprTainted = (expr) => {
+            if (!expr) return false;
+            if (taintSrcPattern.test(expr)) return true;
+            for (const v of taintedVars) {
+              if (new RegExp(`\\b${v}\\b`).test(expr)) return true;
+            }
+            return false;
+          };
+
           lines.forEach((line, idx) => {
+            const ln = idx + 1;
             if (/^\s*except\s*:/.test(line) || (/^\s*except\b/.test(line) && lines[idx + 1] && /^\s*pass\s*(?:#.*)?$/.test(lines[idx + 1]))) {
               out.push(enrichFinding({
                 rule_id: "QA-001", severity: "LOW", category: "Code Quality", cwe: "CWE-391",
                 title: "จับ Exception แบบกว้างเกินไปหรือกลืน Error เงียบๆ (bare except / except: pass)",
-                file_path: relPath, line_number: idx + 1, code_snippet: line.trim().slice(0, 180),
-                context_snippet: buildContextSnippet(lines, idx + 1),
+                file_path: relPath, line_number: ln, code_snippet: line.trim().slice(0, 180),
+                context_snippet: buildContextSnippet(lines, ln),
                 description: "การใช้ except: หรือ except ...: pass ซ่อนข้อผิดพลาดที่สำคัญและอาจกลืน KeyboardInterrupt",
                 remediation: "ระบุชนิด Exception อย่างเจาะจงและจัดการข้อผิดพลาดหรือบันทึก Log",
               }));
@@ -1137,11 +1150,88 @@
               out.push(enrichFinding({
                 rule_id: "QA-002", severity: "LOW", category: "Code Quality", cwe: "CWE-665",
                 title: "พบ Mutable Default Argument ในฟังก์ชัน Python",
-                file_path: relPath, line_number: idx + 1, code_snippet: line.trim().slice(0, 180),
-                context_snippet: buildContextSnippet(lines, idx + 1),
+                file_path: relPath, line_number: ln, code_snippet: line.trim().slice(0, 180),
+                context_snippet: buildContextSnippet(lines, ln),
                 description: "ค่าเริ่มต้นที่เป็น [] หรือ {} จะถูกใช้ร่วมกันข้ามการเรียกฟังก์ชัน",
                 remediation: "ใช้ None เป็นค่าเริ่มต้นแล้วสร้างออบเจกต์ใหม่ภายในฟังก์ชัน",
               }));
+            }
+            if (/\brequests\.(?:get|post|put|delete|patch|head)\s*\(/.test(line) && !/\btimeout\s*=/.test(line) && !/\*\*/.test(line)) {
+              out.push(enrichFinding({
+                rule_id: "QA-004", severity: "LOW", category: "Reliability", cwe: "CWE-400",
+                title: "เรียกใช้ requests.*() โดยไม่กำหนด timeout=",
+                file_path: relPath, line_number: ln, code_snippet: line.trim().slice(0, 180),
+                context_snippet: buildContextSnippet(lines, ln),
+                description: "การเรียก HTTP Request ด้วย requests โดยไม่ระบุ timeout อาจทำให้โปรแกรมหรือ Worker ค้างถาวรได้",
+                remediation: "กำหนด timeout=10 (หรือค่าที่เหมาะสม) ในทุกคำสั่ง requests.* เสมอ",
+              }));
+            }
+
+            if (/^\s*(?:async\s+)?def\s+/.test(line)) {
+              taintedVars.clear();
+            }
+
+            // Check multi-line taint sinks before assignment update
+            const execM = line.match(/\.execute\s*\(\s*([^,)\n]+)/);
+            if (execM && isExprTainted(execM[1])) {
+              out.push(enrichFinding({
+                rule_id: "INJ-001", severity: "CRITICAL", category: "Injection", cwe: "CWE-89",
+                title: "SQL Injection (Dataflow Taint): ส่งตัวแปรจากผู้ใช้เข้า execute() โดยตรง",
+                file_path: relPath, line_number: ln, code_snippet: line.trim().slice(0, 180),
+                context_snippet: buildContextSnippet(lines, ln),
+                description: "พบการรับค่าจากผู้ใช้แล้วส่งต่อข้ามบรรทัดเข้าคำสั่ง SQL execute() โดยตรง",
+                remediation: "ใช้ Parameterized Query เช่น cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))",
+              }));
+            }
+            const evalM = line.match(/\b(?:eval|exec)\s*\(\s*([^)\n]+)/);
+            if (evalM && isExprTainted(evalM[1])) {
+              out.push(enrichFinding({
+                rule_id: "INJ-002", severity: "CRITICAL", category: "Code Execution", cwe: "CWE-94",
+                title: "Code Execution (Dataflow Taint): ส่งตัวแปรจากผู้ใช้เข้า eval()/exec()",
+                file_path: relPath, line_number: ln, code_snippet: line.trim().slice(0, 180),
+                context_snippet: buildContextSnippet(lines, ln),
+                description: "ตัวแปรที่รับค่าจากผู้ใช้ถูกส่งต่อไปยัง eval()/exec()",
+                remediation: "ใช้ json.loads() หรือ ast.literal_eval() แทน",
+              }));
+            }
+            const cmdM = line.match(/\b(?:os\.system|os\.popen)\s*\(\s*([^)\n]+)/);
+            if (cmdM && isExprTainted(cmdM[1])) {
+              out.push(enrichFinding({
+                rule_id: "INJ-003", severity: "HIGH", category: "Command Injection", cwe: "CWE-78",
+                title: "Command Injection (Dataflow Taint): ส่งตัวแปรจากผู้ใช้เข้าคำสั่ง OS",
+                file_path: relPath, line_number: ln, code_snippet: line.trim().slice(0, 180),
+                context_snippet: buildContextSnippet(lines, ln),
+                description: "ข้อมูลจากผู้ใช้ถูกส่งต่อไปยังคำสั่งระบบปฏิบัติการโดยตรง",
+                remediation: "ใช้ subprocess.run([...], shell=False) แบบแยกอาร์กิวเมนต์",
+              }));
+            }
+            const fileM = line.match(/\b(?:open|send_file)\s*\(\s*([^,)\n]+)/);
+            if (fileM && isExprTainted(fileM[1])) {
+              out.push(enrichFinding({
+                rule_id: "INJ-005", severity: "HIGH", category: "Path Traversal", cwe: "CWE-22",
+                title: "Path Traversal (Dataflow Taint): เปิด/ส่งไฟล์จากตัวแปรที่รับจากผู้ใช้",
+                file_path: relPath, line_number: ln, code_snippet: line.trim().slice(0, 180),
+                context_snippet: buildContextSnippet(lines, ln),
+                description: "ตัวแปรที่รับจากผู้ใช้ถูกส่งต่อไปเปิดหรือดาวน์โหลดไฟล์โดยตรง",
+                remediation: "ใช้ secure_filename() และตรวจสอบ os.path.realpath()",
+              }));
+            }
+            const ssrfM = line.match(/\brequests\.(?:get|post|put|delete|patch|head)\s*\(\s*([^,)\n]+)/);
+            if (ssrfM && isExprTainted(ssrfM[1])) {
+              out.push(enrichFinding({
+                rule_id: "INJ-006", severity: "HIGH", category: "SSRF", cwe: "CWE-918",
+                title: "SSRF (Dataflow Taint): ส่ง URL จากผู้ใช้เข้า requests.*()",
+                file_path: relPath, line_number: ln, code_snippet: line.trim().slice(0, 180),
+                context_snippet: buildContextSnippet(lines, ln),
+                description: "URL ที่รับจากผู้ใช้ถูกส่งต่อไปเรียก HTTP Request ฝั่งเซิร์ฟเวอร์โดยตรง",
+                remediation: "ตรวจสอบโดเมนและโปรโตคอลกับ Allowlist และบล็อก Private IP",
+              }));
+            }
+
+            // Track variable taint propagation on assignment / augmented assignment
+            const assignM = line.match(/^\s*([A-Za-z_]\w*)\s*(?:\+?=)\s*(.+)$/);
+            if (assignM && !line.trim().startsWith("def ")) {
+              if (isExprTainted(assignM[2])) taintedVars.add(assignM[1]);
             }
           });
         }
@@ -1551,86 +1641,138 @@
         return null;
       }
 
-      async function fetchWebHtmlWithFallback(targetUrl) {
+      async function fetchWithTimeout(url, options = {}, timeoutMs = 6000) {
+        const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+        const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
         try {
-          const direct = await fetch(targetUrl, { method: "GET" });
-          const text = await direct.text();
-          return { html: text, finalUrl: direct.url || targetUrl, statusCode: direct.status || 200, viaProxy: false };
-        } catch (_corsErr) {}
-
-        try {
-          const aoUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-          const aoRes = await fetch(aoUrl);
-          if (aoRes.ok) {
-            const data = await aoRes.json();
-            if (data && typeof data.contents === "string") {
-              const st = data.status || {};
-              return { html: data.contents, finalUrl: st.url || targetUrl, statusCode: st.http_code || 200, viaProxy: true };
-            }
-          }
-        } catch (_e) {}
-
-        try {
-          const ctUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
-          const ctRes = await fetch(ctUrl);
-          if (ctRes.ok) {
-            const text = await ctRes.text();
-            return { html: text, finalUrl: targetUrl, statusCode: 200, viaProxy: true };
-          }
-        } catch (_e) {}
-
-        throw new Error("ไม่สามารถดึงหน้าเว็บเป้าหมายจากเบราว์เซอร์ได้ (อาจเป็น localhost/เครือข่ายภายใน หรือเว็บปลายทางบล็อก Proxy) — หากต้องการตรวจเว็บภายในหรือตรวจ HTTP Headers/Cookie เต็มรูปแบบ กรุณารันด้วย 'python app.py' ในเครื่อง หรือวางโค้ดในแท็บ 3");
+          return await fetch(url, { ...options, signal: controller ? controller.signal : undefined });
+        } finally {
+          if (timer) clearTimeout(timer);
+        }
       }
 
-      async function scanWebUrl(rawUrl) {
-        let normalized = rawUrl.trim();
-        if (!/^https?:\/\//i.test(normalized)) normalized = "https://" + normalized;
-        let parsed;
-        try { parsed = new URL(normalized); } catch (_e) { throw new Error("URL ไม่ถูกต้อง กรุณาระบุ URL เช่น https://example.com"); }
+      async function fetchWebHtmlParallel(targetUrl) {
+        const channels = [
+          async () => {
+            const res = await fetchWithTimeout(targetUrl, { method: "GET" });
+            const text = await res.text();
+            if (!text || !text.trim()) throw new Error("Empty direct response");
+            return { html: text, finalUrl: res.url || targetUrl, statusCode: res.status || 200, viaProxy: false, isMarkdown: false };
+          },
+          async () => {
+            const res = await fetchWithTimeout(`https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`);
+            if (!res.ok) throw new Error("corsproxy HTTP " + res.status);
+            const text = await res.text();
+            if (!text || !text.trim()) throw new Error("Empty corsproxy");
+            return { html: text, finalUrl: targetUrl, statusCode: res.status || 200, viaProxy: true, isMarkdown: false };
+          },
+          async () => {
+            const res = await fetchWithTimeout(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
+            if (!res.ok) throw new Error("allorigins raw HTTP " + res.status);
+            const text = await res.text();
+            if (!text || !text.trim()) throw new Error("Empty allorigins raw");
+            return { html: text, finalUrl: targetUrl, statusCode: res.status || 200, viaProxy: true, isMarkdown: false };
+          },
+          async () => {
+            const res = await fetchWithTimeout(`https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`);
+            if (!res.ok) throw new Error("allorigins get HTTP " + res.status);
+            const data = await res.json();
+            if (!data || typeof data.contents !== "string" || !data.contents.trim()) throw new Error("Empty allorigins json");
+            const st = data.status || {};
+            return { html: data.contents, finalUrl: st.url || targetUrl, statusCode: st.http_code || 200, viaProxy: true, isMarkdown: false };
+          },
+          async () => {
+            const res = await fetchWithTimeout(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`);
+            if (!res.ok) throw new Error("codetabs HTTP " + res.status);
+            const text = await res.text();
+            if (!text || !text.trim()) throw new Error("Empty codetabs");
+            return { html: text, finalUrl: targetUrl, statusCode: 200, viaProxy: true, isMarkdown: false };
+          },
+        ];
 
-        const fetched = await fetchWebHtmlWithFallback(normalized);
-        let finalParsed;
-        try { finalParsed = new URL(fetched.finalUrl); } catch (_e) { finalParsed = parsed; }
+        try {
+          return await Promise.any(channels.map((fn) => fn()));
+        } catch (_allHtmlFailed) {
+          // Try r.jina.ai reader as secondary text fallback
+          try {
+            const jRes = await fetchWithTimeout(`https://r.jina.ai/${targetUrl}`, {}, 5000);
+            if (jRes.ok) {
+              const jText = await jRes.text();
+              if (jText && jText.trim()) {
+                return { html: jText, finalUrl: targetUrl, statusCode: 200, viaProxy: true, isMarkdown: !/<html|<script|goog\.script\.init/i.test(jText) };
+              }
+            }
+          } catch (_e) {}
+          return null;
+        }
+      }
 
-        const isHttps = finalParsed.protocol === "https:";
+      async function checkReachableNoCors(targetUrl) {
+        try {
+          await fetchWithTimeout(targetUrl, { mode: "no-cors" }, 4000);
+          return true;
+        } catch (_e) {
+          return false;
+        }
+      }
+
+      function inspectUrlParameters(parsedUrl, rawUrlStr, findings) {
+        const sensitiveKeys = ["token", "api_key", "apikey", "key", "secret", "password", "pwd", "access_token", "auth"];
+        const redirectKeys = ["next", "redirect", "redirect_uri", "return_url", "return", "goto", "url", "target"];
+        for (const [k, v] of parsedUrl.searchParams.entries()) {
+          const kl = k.toLowerCase();
+          if (sensitiveKeys.includes(kl) && v.length >= 4) {
+            findings.push(enrichFinding({
+              rule_id: "SEC-002", severity: "HIGH", category: "Hardcoded Secrets", cwe: "CWE-598",
+              title: `พบการส่งค่าความลับ (${k}) ผ่าน URL Query Parameter`,
+              file_path: rawUrlStr, line_number: 1, code_snippet: `${k}=${v.slice(0, 40)}`,
+              description: "ค่าที่ส่งใน URL จะถูกบันทึกใน Browser History, Server Logs และ Referer Header",
+              remediation: "ส่ง Token หรือข้อมูลความลับผ่าน HTTP Header (Authorization) หรือ POST Body แทน Query String",
+            }));
+          }
+          if (redirectKeys.includes(kl) && /^https?:\/\//i.test(v)) {
+            findings.push(enrichFinding({
+              rule_id: "WEB-004", severity: "MEDIUM", category: "Open Redirect", cwe: "CWE-601",
+              title: `พบพารามิเตอร์เปลี่ยนเส้นทาง (${k}=http...) ใน URL`,
+              file_path: rawUrlStr, line_number: 1, code_snippet: `${k}=${v.slice(0, 120)}`,
+              description: "หากเซิร์ฟเวอร์ไม่ตรวจสอบโดเมนปลายทางของพารามิเตอร์นี้ อาจเสี่ยงต่อช่องโหว่ Open Redirect",
+              remediation: "ตรวจสอบให้ Redirect เฉพาะ Relative Path ภายในเว็บหรือโดเมนใน Allowlist",
+            }));
+          }
+        }
+      }
+
+      function inspectHtmlBody(fullBody, targetUrl, finalHost, isHttps, isGasUrl, isGasLogin, statusCode, viaProxy) {
         const findings = [];
-        const fullBody = fetched.html || "";
+        let unpackedGas = false;
+        let scannedScripts = 0;
 
         if (!isHttps) {
           findings.push(enrichFinding({
             rule_id: "TLS-001", severity: "HIGH", category: "Transport Security", cwe: "CWE-319",
             title: "เว็บไซต์ไม่ได้ใช้งานผ่าน HTTPS (การสื่อสารไม่ถูกเข้ารหัส)",
-            file_path: fetched.finalUrl, line_number: 1, code_snippet: `Scheme: ${finalParsed.protocol.replace(":", "")}`,
+            file_path: targetUrl, line_number: 1, code_snippet: "Scheme: http",
             description: "การเชื่อมต่อผ่าน HTTP ธรรมดาทำให้ข้อมูลรหัสผ่านและ Token ถูกดักอ่านระหว่างทางได้",
             remediation: "ติดตั้งใบรับรอง SSL/TLS และ Redirect ไปยัง HTTPS ทั้งหมด",
           }));
         }
 
-        if (fetched.viaProxy) {
+        if (viaProxy) {
           findings.push(enrichFinding({
             rule_id: "INF-003", severity: "INFO", category: "Browser Audit Scope", cwe: "CWE-200",
-            title: "สแกนผ่านโหมด GitHub Pages (เบราว์เซอร์) — ตรวจเนื้อหา HTML/JS/Apps Script ครบถ้วน",
-            file_path: fetched.finalUrl, line_number: 1, code_snippet: "Static Browser Mode (CORS Proxy)",
-            confidence: "HIGH",
-            description: "เบราว์เซอร์ไม่สามารถอ่าน Response Headers (เช่น CSP, HSTS, Set-Cookie) ของโดเมนอื่นได้โดยตรงจาก GitHub Pages ระบบจึงตรวจสอบเชิงลึกจาก HTML, JavaScript และ Apps Script Payload ให้แทน",
-            remediation: "หากต้องการตรวจ HTTP Security Headers และ Cookie Flags ด้วย แนะนำรัน 'python app.py' บนเครื่องของคุณ",
+            title: "ตรวจสอบผ่านโหมด Browser Standalone — วิเคราะห์เนื้อหา HTML/JS/Apps Script ครบถ้วน",
+            file_path: targetUrl, line_number: 1, code_snippet: "100% Client-Side Browser Inspector",
+            description: "เบราว์เซอร์ไม่สามารถอ่าน Response Headers ข้ามโดเมน (เช่น CSP, HSTS, Set-Cookie) ได้โดยตรง ระบบจึงตรวจสอบจากซอร์ส HTML, JavaScript และ Apps Script Payload",
+            remediation: "ตรวจสอบ Security Headers เพิ่มเติมในแท็บ Network ของ DevTools (F12) หากต้องการดู Header ระดับเซิร์ฟเวอร์",
           }));
         }
-
-        const isGasUrl = normalized.toLowerCase().includes("script.google.com/macros/")
-          || finalParsed.hostname.toLowerCase().includes("script.googleusercontent.com")
-          || fullBody.includes("goog.script.init(");
-        const isGasLogin = isGasUrl && (finalParsed.hostname.toLowerCase().includes("accounts.google.com") || /accounts\.google\.com\/v3\/signin/i.test(fullBody));
-
-        let unpackedGas = false;
-        let scannedScripts = 0;
 
         if (isGasUrl) {
           if (isGasLogin) {
             findings.push(enrichFinding({
               rule_id: "GAS-WEB-002", severity: "INFO", category: "Access Control (Apps Script)", cwe: "CWE-284",
               title: "Google Apps Script Web App บังคับล็อกอินบัญชี Google ก่อนเข้าใช้งาน",
-              file_path: fetched.finalUrl, line_number: 1, code_snippet: `Login required (${finalParsed.hostname})`,
+              file_path: targetUrl, line_number: 1, code_snippet: `Login required (${finalHost})`,
               description: "Web App ไม่ได้เปิดแบบสาธารณะ (Anonymous) จึงสแกนจากภายนอกได้เพียงหน้า Sign-in",
               remediation: "คัดลอกโค้ด .gs / .html / appsscript.json มาวางตรวจในแท็บ '3. วางโค้ด' เพื่อตรวจจุดอ่อนภายในโค้ด",
             }));
@@ -1638,7 +1780,7 @@
             findings.push(enrichFinding({
               rule_id: "GAS-WEB-001", severity: "MEDIUM", category: "Access Control (Apps Script)", cwe: "CWE-284",
               title: "Google Apps Script Web App เปิดเข้าถึงได้แบบสาธารณะโดยไม่ต้องล็อกอิน (ANYONE_ANONYMOUS)",
-              file_path: fetched.finalUrl, line_number: 1, code_snippet: `Public Apps Script URL (HTTP ${fetched.statusCode})`,
+              file_path: targetUrl, line_number: 1, code_snippet: `Public Apps Script URL (HTTP ${statusCode})`,
               description: "บุคคลทั่วไปสามารถเรียก URL นี้ได้โดยไม่ต้องลงชื่อเข้าใช้ Google หากตั้ง Execute as 'Me' ร่วมด้วย อาจเสี่ยงต่อข้อมูลใน Google Sheets / Drive",
               remediation: "ตรวจสอบสิทธิ์ใน doGet/doPost หรือเปลี่ยนการ Deploy เป็น 'Anyone with Google account' / 'Only myself'",
             }));
@@ -1669,12 +1811,12 @@
           }
           if (calledFuncs.length > 0) {
             const hasSens = calledFuncs.some((fn) => /(delete|remove|update|save|insert|admin|exec|clear|set|write|edit|create|drop)/i.test(fn));
-            if (hasSens || (isGasUrl && !isGasLogin)) {
+            if (hasSens || isGasUrl) {
               findings.push(enrichFinding({
                 rule_id: "GAS-WEB-003", severity: (hasSens && isGasUrl) ? "HIGH" : "MEDIUM",
                 category: "Access Control (Apps Script)", cwe: "CWE-284",
                 title: `เปิดให้หน้าเว็บเรียกฟังก์ชันฝั่งเซิร์ฟเวอร์ผ่าน google.script.run (${calledFuncs.length} ฟังก์ชัน)`,
-                file_path: fetched.finalUrl, line_number: 1,
+                file_path: targetUrl, line_number: 1,
                 code_snippet: "google.script.run: " + calledFuncs.join(", "),
                 description: "ผู้ใช้งานสามารถเรียกใช้ฟังก์ชันเหล่านี้ผ่าน DevTools Console ได้โดยตรง",
                 remediation: "ตรวจสอบสิทธิ์และ Input ฝั่งเซิร์ฟเวอร์ในไฟล์ .gs ทุกครั้งก่อนแก้ไขหรือคืนข้อมูล",
@@ -1689,7 +1831,7 @@
               findings.push(enrichFinding({
                 rule_id: "WEB-HTML-001", severity: "MEDIUM", category: "Mixed Content", cwe: "CWE-319",
                 title: "หน้าเว็บ HTTPS มีการโหลด Script/Iframe หรือส่งฟอร์มผ่าน HTTP ที่ไม่เข้ารหัส",
-                file_path: fetched.finalUrl, line_number: 1, code_snippet: mix[0].slice(0, 180),
+                file_path: targetUrl, line_number: 1, code_snippet: mix[0].slice(0, 180),
                 description: "ทรัพยากร http:// บนหน้า HTTPS เสี่ยงต่อการถูกดักแก้ไขระหว่างทาง",
                 remediation: "เปลี่ยน URL ทั้งหมดเป็น https://",
               }));
@@ -1700,7 +1842,7 @@
               findings.push(enrichFinding({
                 rule_id: "WEB-HTML-003", severity: "HIGH", category: "Insecure Authentication", cwe: "CWE-319",
                 title: "พบช่องกรอกรหัสผ่าน (<input type=\"password\">) บนหน้าเว็บที่ไม่ได้ใช้ HTTPS",
-                file_path: fetched.finalUrl, line_number: 1, code_snippet: pwd[0].slice(0, 180),
+                file_path: targetUrl, line_number: 1, code_snippet: pwd[0].slice(0, 180),
                 description: "การส่งรหัสผ่านผ่าน HTTP เสี่ยงต่อการถูกดักอ่านเป็นข้อความธรรมดา",
                 remediation: "เปิดใช้งาน HTTPS ก่อนให้บริการหน้า Login",
               }));
@@ -1717,12 +1859,12 @@
             const srcMatch = attrs.match(/\bsrc\s*=\s*['"]([^'"]+)['"]/i);
             if (srcMatch) {
               try {
-                const abs = new URL(srcMatch[1].trim(), fetched.finalUrl);
-                if (abs.host.toLowerCase() !== finalParsed.host.toLowerCase() && !/\bintegrity\s*=/i.test(attrs)) {
+                const abs = new URL(srcMatch[1].trim(), targetUrl);
+                if (abs.host.toLowerCase() !== finalHost.toLowerCase() && !/\bintegrity\s*=/i.test(attrs)) {
                   findings.push(enrichFinding({
                     rule_id: "WEB-HTML-002", severity: "LOW", category: "Subresource Integrity", cwe: "CWE-353",
                     title: `โหลดสคริปต์ภายนอกจาก \`${abs.host}\` โดยไม่มี Subresource Integrity (SRI)`,
-                    file_path: fetched.finalUrl, line_number: 1, code_snippet: `<script src="${srcMatch[1]}">`.slice(0, 180),
+                    file_path: targetUrl, line_number: 1, code_snippet: `<script src="${srcMatch[1]}">`.slice(0, 180),
                     description: "การโหลด JS จาก CDN ภายนอกโดยไม่มี integrity อาจรันโค้ดอันตรายหาก CDN ถูกแฮก",
                     remediation: "เพิ่มแอตทริบิวต์ integrity=\"sha384-...\" และ crossorigin=\"anonymous\"",
                   }));
@@ -1733,15 +1875,18 @@
             }
           }
 
-          // HTML comments, Source Map, Reverse Tabnabbing
+          // SAST scan HTML + inline JS separately
+          const htmlWithoutInline = targetHtml.replace(new RegExp("<script\\b(?![^>]*\\bsrc\\s*=)[^>]*>[\\s\\S]*?<\\/script>", "gi"), "<script><" + "/script>");
+
+          // HTML comments & Reverse Tabnabbing (check outside inline <script> bodies)
           const cmtRegex = /<!--([\s\S]*?)-->/g;
           let cm;
-          while ((cm = cmtRegex.exec(targetHtml)) !== null) {
+          while ((cm = cmtRegex.exec(htmlWithoutInline)) !== null) {
             if (/\b(?:TODO|FIXME|BUG|SECRET|PASSWORD|TOKEN|API_KEY|DEBUG)\b/i.test(cm[1])) {
               findings.push(enrichFinding({
                 rule_id: "WEB-HTML-004", severity: "LOW", category: "Information Disclosure", cwe: "CWE-615",
                 title: "พบคอมเมนต์ HTML ที่อาจเปิดเผยข้อมูลภายในของนักพัฒนา",
-                file_path: fetched.finalUrl, line_number: 1, code_snippet: `<!-- ${cm[1].trim().slice(0, 160)} -->`,
+                file_path: targetUrl, line_number: 1, code_snippet: `<!-- ${cm[1].trim().slice(0, 160)} -->`,
                 description: "คอมเมนต์ HTML ถูกส่งไปยังผู้ใช้ทุกคนและอาจเปิดเผยเบาะแสของระบบ",
                 remediation: "ลบคอมเมนต์ภายในออกจาก HTML ก่อนนำขึ้นใช้งานจริง",
               }));
@@ -1754,7 +1899,7 @@
             findings.push(enrichFinding({
               rule_id: "WEB-HTML-005", severity: "LOW", category: "Information Disclosure", cwe: "CWE-540",
               title: "พบ Source Map (sourceMappingURL) เปิดเผยโครงสร้างซอร์สโค้ดบน Production",
-              file_path: fetched.finalUrl, line_number: 1, code_snippet: srcMapMatch[0].slice(0, 180),
+              file_path: targetUrl, line_number: 1, code_snippet: srcMapMatch[0].slice(0, 180),
               description: "ไฟล์ .map อาจเปิดเผยซอร์สโค้ดฝั่ง Frontend ทั้งหมด",
               remediation: "ปิดการสร้าง/อัปโหลด .map บน Production",
             }));
@@ -1762,13 +1907,13 @@
 
           const anchorRegex = /<a\b([^>]*)>/gi;
           let am;
-          while ((am = anchorRegex.exec(targetHtml)) !== null) {
+          while ((am = anchorRegex.exec(htmlWithoutInline)) !== null) {
             const attrs = am[1];
             if (!/\btarget\s*=\s*['"]?_blank['"]?/i.test(attrs)) continue;
             const hrefM = attrs.match(/\bhref\s*=\s*['"](https?:\/\/[^'"]+)['"]/i);
             if (!hrefM) continue;
             try {
-              if (new URL(hrefM[1]).host.toLowerCase() === finalParsed.host.toLowerCase()) continue;
+              if (new URL(hrefM[1]).host.toLowerCase() === finalHost.toLowerCase()) continue;
             } catch (_e) { continue; }
             const relM = attrs.match(/\brel\s*=\s*['"]([^'"]+)['"]/i);
             const relV = relM ? relM[1].toLowerCase() : "";
@@ -1776,7 +1921,7 @@
               findings.push(enrichFinding({
                 rule_id: "WEB-HTML-006", severity: "LOW", category: "Reverse Tabnabbing", cwe: "CWE-1022",
                 title: "ลิงก์ target=\"_blank\" ออกนอกเว็บโดยไม่มี rel=\"noopener noreferrer\"",
-                file_path: fetched.finalUrl, line_number: 1, code_snippet: `<a ${attrs.trim().slice(0, 150)}>`,
+                file_path: targetUrl, line_number: 1, code_snippet: `<a ${attrs.trim().slice(0, 150)}>`,
                 description: "เว็บปลายทางอาจเข้าถึง window.opener เพื่อทำ Reverse Tabnabbing ได้",
                 remediation: "เพิ่ม rel=\"noopener noreferrer\" ในลิงก์ target=\"_blank\" ที่ออกนอกโดเมน",
               }));
@@ -1784,9 +1929,7 @@
             }
           }
 
-          // SAST scan HTML + inline JS separately
-          const htmlWithoutInline = targetHtml.replace(new RegExp("<script\\b(?![^>]*\\bsrc\\s*=)[^>]*>[\\s\\S]*?<\\/script>", "gi"), "<script><" + "/script>");
-          const targetFileLabel = unpackedGas ? `${fetched.finalUrl} (Apps Script userHtml)` : fetched.finalUrl;
+          const targetFileLabel = unpackedGas ? `${targetUrl} (Apps Script userHtml)` : targetUrl;
           scanContent(htmlWithoutInline, targetFileLabel, ".html").forEach((item) => findings.push(item));
           scannedScripts += inlineScripts.length;
           inlineScripts.forEach((scriptBody) => {
@@ -1794,18 +1937,181 @@
           });
         }
 
+        return { findings, unpackedGas, scannedScripts };
+      }
+
+      function buildUrlFallbackAudit(normalized, parsed, isGasUrl, reachable) {
+        const findings = [];
+        const isHttps = parsed.protocol === "https:";
+        const reachText = reachable ? "เข้าถึงเซิร์ฟเวอร์ปลายทางได้ (Reachable)" : "ตรวจสอบ URL เชิงโครงสร้าง (ถูกจำกัดสิทธิ์จากเบราว์เซอร์)";
+
+        if (!isHttps) {
+          findings.push(enrichFinding({
+            rule_id: "TLS-001", severity: "HIGH", category: "Transport Security", cwe: "CWE-319",
+            title: "เว็บไซต์ไม่ได้ใช้งานผ่าน HTTPS (การสื่อสารไม่ถูกเข้ารหัส)",
+            file_path: normalized, line_number: 1, code_snippet: `Scheme: ${parsed.protocol.replace(":", "")}`,
+            description: "การเชื่อมต่อผ่าน HTTP ธรรมดาทำให้ข้อมูลรหัสผ่านและ Token ถูกดักอ่านระหว่างทางได้",
+            remediation: "เปิดใช้งาน HTTPS และ Redirect HTTP ทั้งหมดไปยัง HTTPS",
+          }));
+        }
+
+        inspectUrlParameters(parsed, normalized, findings);
+
+        if (isGasUrl) {
+          const isDevUrl = /\/dev(?:[/?#]|$)/i.test(parsed.pathname);
+          if (isDevUrl) {
+            findings.push(enrichFinding({
+              rule_id: "GAS-WEB-004", severity: "INFO", category: "Access Control (Apps Script)", cwe: "CWE-284",
+              title: "ลิงก์นี้เป็น Test Deployment (/dev) ที่เข้าถึงได้เฉพาะบัญชีเจ้าของสคริปต์",
+              file_path: normalized, line_number: 1, code_snippet: parsed.pathname,
+              confidence: "HIGH",
+              description: "URL ลงท้ายด้วย /dev ใช้สำหรับการทดสอบของเจ้าของโปรเจกต์เท่านั้น และบังคับล็อกอิน Google เสมอ",
+              remediation: "เมื่อต้องการเปิดใช้งานจริงให้ Deploy เป็น /exec และคัดลอกโค้ด .gs / .html มาตรวจในแท็บ 3 เพิ่มเติม",
+            }));
+          } else {
+            findings.push(enrichFinding({
+              rule_id: "GAS-WEB-001", severity: "MEDIUM", category: "Access Control (Apps Script)", cwe: "CWE-284",
+              title: "Google Apps Script Web App (/exec) — ควรตรวจสอบสิทธิ์ Access และ Execute As",
+              file_path: normalized, line_number: 1, code_snippet: `Apps Script Endpoint (${reachText})`,
+              confidence: "MEDIUM",
+              description: "ระบบปลายทางของ Google ป้องกันการดึงเนื้อหาข้ามโดเมนจากเบราว์เซอร์ (CORS) หรือบังคับล็อกอิน Google จึงควรตรวจสิทธิ์การ Deploy ใน appsscript.json และโค้ดฝั่งเซิร์ฟเวอร์",
+              remediation: "หลีกเลี่ยงการตั้งค่า executeAs: USER_DEPLOYING คู่กับ access: ANYONE_ANONYMOUS โดยไม่มี Token/การตรวจสิทธิ์",
+            }));
+          }
+
+          findings.push(enrichFinding({
+            rule_id: "GAS-WEB-005", severity: "MEDIUM", category: "Access Control (Apps Script)", cwe: "CWE-269",
+            title: "จุดตรวจสำคัญ Apps Script: ตรวจสอบสิทธิ์บัญชีที่รัน (USER_DEPLOYING vs USER_ACCESSING)",
+            file_path: normalized, line_number: 1, code_snippet: "appsscript.json -> webapp.executeAs / webapp.access",
+            confidence: "MEDIUM",
+            description: "หากตั้ง executeAs เป็น 'Me' (USER_DEPLOYING) และเปิดสาธารณะ ผู้ใช้ภายนอกทุกคนจะสามารถสั่งทำงานด้วยสิทธิ์ Google Drive / Sheets ของเจ้าของสคริปต์ได้",
+            remediation: "ตรวจสิทธิ์ผู้ใช้ใน doGet(e)/doPost(e) ด้วย Session.getActiveUser().getEmail() หรือ API Token และจำกัด oauthScopes เท่าที่จำเป็น",
+          }));
+
+          findings.push(enrichFinding({
+            rule_id: "GAS-WEB-006", severity: "MEDIUM", category: "XSS (Apps Script)", cwe: "CWE-79",
+            title: "จุดตรวจสำคัญ Apps Script: ตรวจสอบ HtmlService Escape (<?= vs <?!=) และ XFrameOptions",
+            file_path: normalized, line_number: 1, code_snippet: "HtmlService.createTemplateFromFile(...) / XFrameOptionsMode",
+            confidence: "MEDIUM",
+            description: "การใช้ <?!= ... ?> ในเทมเพลต HTML ของ Apps Script หรือ XFrameOptionsMode.ALLOWALL เปิดความเสี่ยง XSS และ Clickjacking",
+            remediation: "ใช้ <?= ... ?> แทน <?!= ... ?> และใช้ HtmlService.XFrameOptionsMode.DEFAULT",
+          }));
+
+          findings.push(enrichFinding({
+            rule_id: "GAS-WEB-003", severity: "MEDIUM", category: "Concurrency & RPC (Apps Script)", cwe: "CWE-284",
+            title: "จุดตรวจสำคัญ Apps Script: ตรวจสอบฟังก์ชัน google.script.run และ LockService",
+            file_path: normalized, line_number: 1, code_snippet: "google.script.run.* + LockService.getScriptLock()",
+            confidence: "MEDIUM",
+            description: "ฟังก์ชันที่เปิดให้หน้าบ้านเรียกผ่าน google.script.run สามารถถูกเรียกจาก DevTools Console ได้โดยตรง และหากเขียน Google Sheets พร้อมกันโดยไม่มี LockService อาจเกิด Race Condition",
+            remediation: "ตรวจสอบ Input/สิทธิ์ในทุกฟังก์ชันฝั่ง .gs ที่หน้าเว็บเรียกได้ และใช้ LockService.getScriptLock() ก่อนแก้ไขชีต",
+          }));
+
+          findings.push(enrichFinding({
+            rule_id: "INF-003", severity: "INFO", category: "Browser Audit Scope", cwe: "CWE-200",
+            title: "Google ป้องกันการดึง HTML ข้ามโดเมนจากเบราว์เซอร์ — แนะนำตรวจโค้ดลึกในแท็บ 3 ควบคู่กัน",
+            file_path: normalized, line_number: 1, code_snippet: reachText,
+            confidence: "HIGH",
+            description: "Google Apps Script บังคับหน้า Google Login หรือจำกัดการเข้าถึงผ่าน Proxy สาธารณะ หากต้องการตรวจจุดอ่อนแบบเจาะจงทีละบรรทัดให้คัดลอกโค้ด Code.gs, index.html, appsscript.json มาวางในแท็บ 3",
+            remediation: "เปิดแท็บ '📋 3. วางโค้ด Apps Script / โค้ดทั่วไป' แล้ววางโค้ดเพื่อตรวจเจาะลึกทุกบรรทัด",
+          }));
+        } else {
+          findings.push(enrichFinding({
+            rule_id: "INF-003", severity: "INFO", category: "Browser Audit Scope", cwe: "CWE-200",
+            title: `เว็บปลายทางจำกัดการดึงข้อมูลข้ามโดเมนจากเบราว์เซอร์ (${reachText})`,
+            file_path: normalized, line_number: 1, code_snippet: `Target: ${parsed.host} | ${reachText}`,
+            confidence: "HIGH",
+            description: "เซิร์ฟเวอร์ปลายทางไม่อนุญาต CORS หรือป้องกันการเข้าถึงผ่าน Proxy สาธารณะ (หรือเป็นเครือข่ายภายใน/localhost) เบราว์เซอร์จึงวิเคราะห์จากโครงสร้าง URL และรายการตรวจมาตรฐานด้านล่าง",
+            remediation: "หากเป็นโปรเจกต์ของคุณเอง สามารถเลือกโฟลเดอร์โปรเจกต์ในแท็บ 2 เพื่อสแกนโค้ดทั้งหมดได้ทันที",
+          }));
+          [
+            ["HDR-001", "MEDIUM", "ตรวจสอบ Header Content-Security-Policy (CSP)", "CWE-693", "ช่วยป้องกัน XSS และการโหลดสคริปต์อันตราย", "ตั้งค่า Content-Security-Policy: default-src 'self'"],
+            ["HDR-002", "MEDIUM", "ตรวจสอบ Header X-Frame-Options", "CWE-1021", "ป้องกันการนำเว็บไปฝัง iframe เพื่อทำ Clickjacking", "ตั้งค่า X-Frame-Options: DENY หรือ SAMEORIGIN"],
+            ["HDR-003", "LOW", "ตรวจสอบ Header X-Content-Type-Options: nosniff", "CWE-16", "ป้องกัน MIME Sniffing", "ตั้งค่า X-Content-Type-Options: nosniff"],
+            ["COK-001", "MEDIUM", "ตรวจสอบ Cookie Flags (HttpOnly, Secure, SameSite)", "CWE-614", "ป้องกันการขโมย Session Cookie ผ่าน JS และ CSRF", "กำหนด HttpOnly; Secure; SameSite=Lax ให้ Session Cookie"],
+          ].forEach(([rid, sev, title, cwe, desc, rem]) => {
+            findings.push(enrichFinding({
+              rule_id: rid, severity: sev, category: "Security Headers Checklist", cwe,
+              title: `${title} (ตรวจเช็กใน DevTools Network)`,
+              file_path: normalized, line_number: 1, code_snippet: `Checklist -> ${rid}`,
+              confidence: "LOW", description: desc, remediation: rem,
+            }));
+          });
+        }
+
+        return finalizeReport("web", {
+          url: normalized,
+          status_code: reachable ? "Reachable (CORS Protected)" : "URL Audit",
+          https: isHttps,
+          scanned_scripts: 0,
+          is_apps_script: isGasUrl,
+          unpacked_gas_html: false,
+        }, findings);
+      }
+
+      async function scanWebUrl(rawUrl) {
+        let normalized = rawUrl.trim();
+        if (!/^https?:\/\//i.test(normalized)) normalized = "https://" + normalized;
+        let parsed;
+        try { parsed = new URL(normalized); } catch (_e) { throw new Error("URL ไม่ถูกต้อง กรุณาระบุ URL เช่น https://example.com"); }
+
+        const isGasUrlInitial = normalized.toLowerCase().includes("script.google.com/macros/")
+          || parsed.hostname.toLowerCase().includes("script.googleusercontent.com");
+
+        const fetched = await fetchWebHtmlParallel(normalized);
+        if (!fetched) {
+          const reachable = await checkReachableNoCors(normalized);
+          return buildUrlFallbackAudit(normalized, parsed, isGasUrlInitial, reachable);
+        }
+
+        let finalParsed;
+        try { finalParsed = new URL(fetched.finalUrl); } catch (_e) { finalParsed = parsed; }
+
+        const fullBody = fetched.html || "";
+        const isHttps = finalParsed.protocol === "https:";
+        const isGasUrl = isGasUrlInitial || finalParsed.hostname.toLowerCase().includes("script.googleusercontent.com") || fullBody.includes("goog.script.init(");
+        const isGasLogin = isGasUrl && (finalParsed.hostname.toLowerCase().includes("accounts.google.com") || /accounts\.google\.com\/v3\/signin/i.test(fullBody));
+
+        if (fetched.isMarkdown && !fullBody.includes("<")) {
+          const fallbackReport = buildUrlFallbackAudit(fetched.finalUrl, finalParsed, isGasUrl, true);
+          scanContent(fullBody, fetched.finalUrl, ".txt").forEach((item) => fallbackReport.findings.push(item));
+          return finalizeReport("web", fallbackReport.meta, fallbackReport.findings);
+        }
+
+        const inspected = inspectHtmlBody(
+          fullBody, fetched.finalUrl, finalParsed.host, isHttps,
+          isGasUrl, isGasLogin, fetched.statusCode, fetched.viaProxy
+        );
+        inspectUrlParameters(finalParsed, fetched.finalUrl, inspected.findings);
+
         return finalizeReport("web", {
           url: fetched.finalUrl,
           status_code: fetched.statusCode,
           https: isHttps,
-          scanned_scripts: scannedScripts,
+          scanned_scripts: inspected.scannedScripts,
           is_apps_script: isGasUrl,
-          unpacked_gas_html: unpackedGas,
-        }, findings);
+          unpacked_gas_html: inspected.unpackedGas,
+        }, inspected.findings);
+      }
+
+      function scanSelfDashboard(htmlText, pageUrl) {
+        let parsed;
+        try { parsed = new URL(pageUrl); } catch (_e) { parsed = { protocol: "http:", host: "localhost" }; }
+        const isHttps = parsed.protocol === "https:";
+        // Exclude the embedded scanner engine rules & demo fixtures when self-auditing this dashboard
+        const cleanedHtml = htmlText.replace(new RegExp("<script\\s+id=[\"']auditor-engine-script[\"'][\\s\\S]*?<\\/script>", "i"), "");
+        const inspected = inspectHtmlBody(cleanedHtml, pageUrl, parsed.host || "localhost", isHttps, false, false, 200, false);
+        return finalizeReport("web", {
+          url: pageUrl,
+          status_code: 200,
+          https: isHttps,
+          scanned_scripts: inspected.scannedScripts,
+          is_apps_script: false,
+          unpacked_gas_html: false,
+        }, inspected.findings);
       }
 
       return {
-        scanSnippet, scanFileEntries, scanDemo, scanWebUrl,
+        scanSnippet, scanFileEntries, scanDemo, scanWebUrl, scanSelfDashboard,
         listHistory, getHistoryRecord, compareScans, IGNORED_DIRS,
       };
     })();
@@ -1814,40 +2120,6 @@
   <script>
     let currentReport = null;
     let lastFilteredFindings = [];
-    let backendAvailable = !(window.location.hostname.endsWith("github.io") || window.location.protocol === "file:");
-
-    function updateModeBadge() {
-      const badge = document.getElementById("runtime-mode-badge");
-      if (!badge) return;
-      if (backendAvailable) {
-        badge.textContent = "🟢 Python Server Mode (Full Audit)";
-      } else {
-        badge.textContent = "🌐 Static / GitHub Pages Mode";
-      }
-    }
-    updateModeBadge();
-
-    class StaticModeError extends Error {}
-
-    async function tryApiJson(url, options) {
-      if (!backendAvailable) throw new StaticModeError("Static mode");
-      let res;
-      try {
-        res = await fetch(url, options);
-      } catch (_netErr) {
-        backendAvailable = false;
-        updateModeBadge();
-        throw new StaticModeError("Backend unreachable");
-      }
-      const ctype = (res.headers.get("content-type") || "").toLowerCase();
-      if (!ctype.includes("application/json")) {
-        backendAvailable = false;
-        updateModeBadge();
-        throw new StaticModeError("Non-JSON response from static host");
-      }
-      const data = await res.json();
-      return { res, data };
-    }
 
     const SEVERITY_COLORS = {
       CRITICAL: "#ef4444",
@@ -1893,141 +2165,41 @@
       });
     });
 
-    async function runCodeScan(targetPath) {
-      showBanner("loading", "กำลังวิเคราะห์ซอร์สโค้ดและไฟล์กำหนดค่า กรุณารอสักครู่...");
-      try {
-        const { res, data } = await tryApiJson("/api/scan/code", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ path: targetPath }),
-        });
-        if (!res.ok || !data.success) {
-          showBanner("error", data.error || "เกิดข้อผิดพลาดในการสแกนซอร์สโค้ด");
-          return;
-        }
-        showBanner("", "");
-        renderReport(data);
-      } catch (err) {
-        if (err instanceof StaticModeError) {
-          if (targetPath.trim().toLowerCase() === "demo") {
-            const report = ClientEngine.scanDemo();
-            showBanner("", "");
-            renderReport(report);
-            return;
-          }
-          showBanner("error", "บน GitHub Pages ไม่สามารถเข้าถึง Path บนเครื่องจากตัวอักษรได้โดยตรง กรุณากดปุ่ม '📁 เลือกโฟลเดอร์...' เพื่อเลือกโฟลเดอร์ผ่านเบราว์เซอร์ หรือกด '⚡ ทดลองสแกนโปรเจกต์ตัวอย่าง (Demo)'");
-          return;
-        }
-        showBanner("error", "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: " + err.message);
-      }
+    function runDemoScan() {
+      showBanner("loading", "กำลังวิเคราะห์โปรเจกต์ตัวอย่าง (Demo)...");
+      document.getElementById("code-path-input").value = "sample_vulnerable_app (Demo)";
+      const report = ClientEngine.scanDemo();
+      showBanner("", "");
+      renderReport(report);
     }
 
-    async function runSnippetScan(codeText, filename) {
-      showBanner("loading", `กำลังวิเคราะห์โค้ด (${filename}) กรุณารอสักครู่...`);
-      try {
-        const { res, data } = await tryApiJson("/api/scan/snippet", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code: codeText, filename: filename }),
-        });
-        if (!res.ok || !data.success) {
-          showBanner("error", data.error || "เกิดข้อผิดพลาดในการสแกนโค้ด");
-          return;
-        }
-        showBanner("", "");
-        renderReport(data);
-      } catch (err) {
-        if (err instanceof StaticModeError) {
-          const report = ClientEngine.scanSnippet(codeText, filename);
-          showBanner("", "");
-          renderReport(report);
-          return;
-        }
-        showBanner("error", "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: " + err.message);
-      }
+    function runSnippetScan(codeText, filename) {
+      showBanner("loading", `กำลังวิเคราะห์โค้ด (${filename})...`);
+      const report = ClientEngine.scanSnippet(codeText, filename);
+      showBanner("", "");
+      renderReport(report);
     }
 
     async function runWebScan(targetUrl) {
       showBanner("loading", "กำลังตรวจสอบเว็บไซต์และวิเคราะห์โครงสร้างโค้ด กรุณารอสักครู่...");
       try {
-        const { res, data } = await tryApiJson("/api/scan/web", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: targetUrl }),
-        });
-        if (!res.ok || !data.success) {
-          showBanner("error", data.error || "เกิดข้อผิดพลาดในการตรวจสอบเว็บไซต์");
-          return;
-        }
+        const report = await ClientEngine.scanWebUrl(targetUrl);
         showBanner("", "");
-        renderReport(data);
+        renderReport(report);
       } catch (err) {
-        if (err instanceof StaticModeError) {
-          try {
-            const report = await ClientEngine.scanWebUrl(targetUrl);
-            showBanner("", "");
-            renderReport(report);
-          } catch (clientErr) {
-            showBanner("error", clientErr.message || "ไม่สามารถตรวจสอบเว็บไซต์นี้จากเบราว์เซอร์ได้");
-          }
-          return;
-        }
-        showBanner("error", "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: " + err.message);
+        showBanner("error", err.message || "ไม่สามารถตรวจสอบ URL นี้ได้");
       }
     }
 
-    document.getElementById("scan-code-btn").addEventListener("click", () => {
-      const val = document.getElementById("code-path-input").value.trim();
-      if (!val) {
-        showBanner("error", "กรุณาระบุ Path ของโฟลเดอร์หรือไฟล์ หรือกดปุ่ม Demo");
-        return;
-      }
-      if (/^https?:\/\//i.test(val)) {
-        switchTab("web-tab");
-        document.getElementById("web-url-input").value = val;
-        runWebScan(val);
-        return;
-      }
-      runCodeScan(val);
-    });
-
-    document.getElementById("code-path-input").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        document.getElementById("scan-code-btn").click();
-      }
-    });
-
-    document.getElementById("scan-demo-btn").addEventListener("click", () => {
-      document.getElementById("code-path-input").value = "demo";
-      runCodeScan("demo");
-    });
-
-    document.getElementById("browse-btn").addEventListener("click", async () => {
-      try {
-        const { data } = await tryApiJson("/api/browse");
-        if (data.success && data.path) {
-          document.getElementById("code-path-input").value = data.path;
-        } else if (data.error) {
-          showBanner("error", data.error);
-        }
-      } catch (err) {
-        if (err instanceof StaticModeError) {
-          document.getElementById("browser-folder-input").click();
-          return;
-        }
-        showBanner("error", "ไม่สามารถเปิดหน้าต่างเลือกโฟลเดอร์ได้: " + err.message);
-      }
-    });
-
-    document.getElementById("browser-folder-input").addEventListener("change", async (e) => {
-      const files = Array.from(e.target.files || []);
+    async function handleSelectedFiles(fileList, isFolder) {
+      const files = Array.from(fileList || []);
       if (files.length === 0) return;
-      showBanner("loading", `กำลังอ่านและสแกนไฟล์ในโฟลเดอร์ (${files.length} ไฟล์)...`);
+      showBanner("loading", `กำลังอ่านและสแกนไฟล์ (${files.length} ไฟล์)...`);
       const entries = [];
-      let rootFolder = "Browser Folder";
+      let label = isFolder ? "Selected Folder" : `${files.length} ไฟล์ที่เลือก`;
       for (const file of files) {
         const relPath = file.webkitRelativePath || file.name;
-        if (relPath.includes("/")) rootFolder = relPath.split("/")[0];
+        if (isFolder && relPath.includes("/")) label = relPath.split("/")[0];
         const parts = relPath.split("/");
         if (parts.some((p, i) => i < parts.length - 1 && (ClientEngine.IGNORED_DIRS.has(p) || p.startsWith(".")))) {
           continue;
@@ -2038,10 +2210,29 @@
           entries.push({ path: relPath, content });
         } catch (_err) {}
       }
-      document.getElementById("code-path-input").value = rootFolder;
-      const report = ClientEngine.scanFileEntries(entries, rootFolder);
+      document.getElementById("code-path-input").value = label;
+      const report = ClientEngine.scanFileEntries(entries, label);
       showBanner("", "");
       renderReport(report);
+    }
+
+    document.getElementById("scan-demo-btn").addEventListener("click", runDemoScan);
+
+    document.getElementById("browse-folder-btn").addEventListener("click", () => {
+      document.getElementById("browser-folder-input").click();
+    });
+
+    document.getElementById("browse-files-btn").addEventListener("click", () => {
+      document.getElementById("browser-files-input").click();
+    });
+
+    document.getElementById("browser-folder-input").addEventListener("change", async (e) => {
+      await handleSelectedFiles(e.target.files, true);
+      e.target.value = "";
+    });
+
+    document.getElementById("browser-files-input").addEventListener("change", async (e) => {
+      await handleSelectedFiles(e.target.files, false);
       e.target.value = "";
     });
 
@@ -2066,6 +2257,10 @@ function doGet(e) {
   return tpl.evaluate().setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+function saveLead(name) {
+  SpreadsheetApp.getActiveSheet().appendRow([name]);
+}
+
 function callApi(url, expr) {
   UrlFetchApp.fetch(url, { validateHttpsCertificates: false });
   return eval(expr);
@@ -2088,9 +2283,12 @@ function callApi(url, expr) {
     });
 
     document.getElementById("scan-self-btn").addEventListener("click", () => {
-      const selfUrl = window.location.origin;
+      const selfUrl = window.location.href;
       document.getElementById("web-url-input").value = selfUrl;
-      runWebScan(selfUrl);
+      showBanner("loading", "กำลังตรวจสอบโครงสร้างหน้าเว็บปัจจุบัน...");
+      const report = ClientEngine.scanSelfDashboard(document.documentElement.outerHTML, selfUrl);
+      showBanner("", "");
+      renderReport(report);
     });
 
     function renderReport(report) {
@@ -2553,17 +2751,8 @@ function callApi(url, expr) {
       });
     }
 
-    async function loadHistory() {
-      let historyItems = [];
-      try {
-        const { data } = await tryApiJson("/api/history");
-        if (data.success && Array.isArray(data.history)) historyItems = data.history;
-      } catch (err) {
-        if (err instanceof StaticModeError) {
-          historyItems = ClientEngine.listHistory();
-        }
-      }
-
+    function loadHistory() {
+      const historyItems = ClientEngine.listHistory();
       const listEl = document.getElementById("history-list");
       if (!historyItems || historyItems.length === 0) {
         listEl.innerHTML = `<div class="hint">ยังไม่มีประวัติการสแกน</div>`;
@@ -2597,94 +2786,56 @@ function callApi(url, expr) {
       });
     }
 
-    async function loadHistoryRecord(scanId) {
-      try {
-        const { res, data } = await tryApiJson(`/api/history/${encodeURIComponent(scanId)}`);
-        if (res.ok && data.success) {
-          showBanner("", "");
-          renderReport(data);
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }
-      } catch (err) {
-        if (err instanceof StaticModeError) {
-          const rec = ClientEngine.getHistoryRecord(scanId);
-          if (rec) {
-            showBanner("", "");
-            renderReport({ success: true, ...rec });
-            window.scrollTo({ top: 0, behavior: "smooth" });
-          }
-          return;
-        }
-        showBanner("error", "ไม่สามารถโหลดประวัติได้: " + err.message);
+    function loadHistoryRecord(scanId) {
+      const rec = ClientEngine.getHistoryRecord(scanId);
+      if (rec) {
+        showBanner("", "");
+        renderReport({ success: true, ...rec });
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
     }
 
-    async function compareWithCurrent(baseId) {
+    function compareWithCurrent(baseId) {
       if (!currentReport || !currentReport.meta || !currentReport.meta.scan_id) return;
-      try {
-        let cmp;
-        try {
-          const { res, data } = await tryApiJson("/api/compare", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              base_id: baseId,
-              target_id: currentReport.meta.scan_id,
-            }),
-          });
-          if (!res.ok || !data.success) {
-            showBanner("error", data.error || "ไม่สามารถเปรียบเทียบได้");
-            return;
-          }
-          cmp = data.comparison;
-        } catch (err) {
-          if (err instanceof StaticModeError) {
-            const baseRec = ClientEngine.getHistoryRecord(baseId);
-            if (!baseRec) {
-              showBanner("error", "ไม่พบประวัติการสแกนที่ต้องการเปรียบเทียบ");
-              return;
-            }
-            cmp = ClientEngine.compareScans(baseRec, currentReport);
-          } else {
-            throw err;
-          }
-        }
-        const diffSign = cmp.score_diff > 0 ? `+${cmp.score_diff}` : `${cmp.score_diff}`;
-        const diffColor = cmp.score_diff >= 0 ? "#4ade80" : "#f87171";
-        const card = document.getElementById("comparison-card");
-        card.style.display = "block";
-        card.innerHTML = `
-          <div class="section-title">
-            <span>⚖️ ผลการเปรียบเทียบก่อน-หลังแก้ไข (Before vs After)</span>
-            <button class="btn btn-secondary btn-mini" id="close-compare-btn" type="button">ปิด</button>
-          </div>
-          <div class="compare-grid">
-            <div class="compare-stat">
-              <div class="big" style="color:${diffColor};">${escapeHtml(diffSign)} คะแนน</div>
-              <div class="hint" style="margin:0;">${escapeHtml(cmp.old_score)} (เกรด ${escapeHtml(cmp.old_grade)}) → ${escapeHtml(cmp.new_score)} (เกรด ${escapeHtml(cmp.new_grade)})</div>
-            </div>
-            <div class="compare-stat">
-              <div class="big" style="color:#4ade80;">✅ ${escapeHtml(cmp.resolved_count)}</div>
-              <div class="hint" style="margin:0;">จุดอ่อนที่แก้ไขแล้ว</div>
-            </div>
-            <div class="compare-stat">
-              <div class="big" style="color:#facc15;">⚠️ ${escapeHtml(cmp.remaining_count)}</div>
-              <div class="hint" style="margin:0;">จุดอ่อนที่ยังคงเหลือ</div>
-            </div>
-            <div class="compare-stat">
-              <div class="big" style="color:#f87171;">🆕 ${escapeHtml(cmp.new_count)}</div>
-              <div class="hint" style="margin:0;">จุดอ่อนที่พบใหม่</div>
-            </div>
-          </div>
-          ${cmp.resolved_findings.length > 0 ? `<div class="remediation-box"><strong>รายการที่แก้ไขสำเร็จแล้ว:</strong> ${cmp.resolved_findings.map((f) => `${escapeHtml(f.rule_id)} (${escapeHtml(f.file_path)})`).join(", ")}</div>` : ""}
-        `;
-        document.getElementById("close-compare-btn").addEventListener("click", () => {
-          card.style.display = "none";
-        });
-        card.scrollIntoView({ behavior: "smooth", block: "center" });
-      } catch (err) {
-        showBanner("error", "เกิดข้อผิดพลาดในการเปรียบเทียบ: " + err.message);
+      const baseRec = ClientEngine.getHistoryRecord(baseId);
+      if (!baseRec) {
+        showBanner("error", "ไม่พบประวัติการสแกนที่ต้องการเปรียบเทียบ");
+        return;
       }
+      const cmp = ClientEngine.compareScans(baseRec, currentReport);
+      const diffSign = cmp.score_diff > 0 ? `+${cmp.score_diff}` : `${cmp.score_diff}`;
+      const diffColor = cmp.score_diff >= 0 ? "#4ade80" : "#f87171";
+      const card = document.getElementById("comparison-card");
+      card.style.display = "block";
+      card.innerHTML = `
+        <div class="section-title">
+          <span>⚖️ ผลการเปรียบเทียบก่อน-หลังแก้ไข (Before vs After)</span>
+          <button class="btn btn-secondary btn-mini" id="close-compare-btn" type="button">ปิด</button>
+        </div>
+        <div class="compare-grid">
+          <div class="compare-stat">
+            <div class="big" style="color:${diffColor};">${escapeHtml(diffSign)} คะแนน</div>
+            <div class="hint" style="margin:0;">${escapeHtml(cmp.old_score)} (เกรด ${escapeHtml(cmp.old_grade)}) → ${escapeHtml(cmp.new_score)} (เกรด ${escapeHtml(cmp.new_grade)})</div>
+          </div>
+          <div class="compare-stat">
+            <div class="big" style="color:#4ade80;">✅ ${escapeHtml(cmp.resolved_count)}</div>
+            <div class="hint" style="margin:0;">จุดอ่อนที่แก้ไขแล้ว</div>
+          </div>
+          <div class="compare-stat">
+            <div class="big" style="color:#facc15;">⚠️ ${escapeHtml(cmp.remaining_count)}</div>
+            <div class="hint" style="margin:0;">จุดอ่อนที่ยังคงเหลือ</div>
+          </div>
+          <div class="compare-stat">
+            <div class="big" style="color:#f87171;">🆕 ${escapeHtml(cmp.new_count)}</div>
+            <div class="hint" style="margin:0;">จุดอ่อนที่พบใหม่</div>
+          </div>
+        </div>
+        ${cmp.resolved_findings.length > 0 ? `<div class="remediation-box"><strong>รายการที่แก้ไขสำเร็จแล้ว:</strong> ${cmp.resolved_findings.map((f) => `${escapeHtml(f.rule_id)} (${escapeHtml(f.file_path)})`).join(", ")}</div>` : ""}
+      `;
+      document.getElementById("close-compare-btn").addEventListener("click", () => {
+        card.style.display = "none";
+      });
+      card.scrollIntoView({ behavior: "smooth", block: "center" });
     }
 
     document.getElementById("refresh-history-btn").addEventListener("click", loadHistory);
