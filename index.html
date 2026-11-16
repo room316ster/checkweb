@@ -883,9 +883,20 @@
 
     <div id="history-section" class="panel" style="margin-top: 22px;">
       <div class="section-title">
-        <span>📊 ประวัติการสแกน &amp; เปรียบเทียบผลก่อน-หลังแก้ไข (Scan History &amp; Compare)</span>
-        <button class="btn btn-secondary btn-mini" id="refresh-history-btn" type="button">🔄 รีเฟรชประวัติ</button>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span>📊 ประวัติการสแกน &amp; เปรียบเทียบผลก่อน-หลังแก้ไข (Scan History &amp; Compare)</span>
+          <span class="tag" style="color:var(--mint);border-color:rgba(16,185,129,0.4);">🔒 ส่วนตัวเฉพาะเครื่องของคุณ</span>
+        </div>
+        <div class="actions" style="align-items:center;">
+          <select id="history-mode-select" style="padding:7px 11px;font-size:0.82rem;border-radius:9px;">
+            <option value="local">💾 เก็บในเบราว์เซอร์เครื่องนี้เท่านั้น (คนอื่นไม่เห็น)</option>
+            <option value="session">🛡️ โหมดคอมส่วนกลาง (ลบอัตโนมัติเมื่อปิดแท็บ)</option>
+          </select>
+          <button class="btn btn-secondary btn-mini" id="refresh-history-btn" type="button">🔄 รีเฟรช</button>
+          <button class="btn btn-secondary btn-mini" id="clear-history-btn" type="button" style="border-color:rgba(251,113,133,0.4);color:#fda4af;">🗑️ ล้างประวัติทั้งหมด</button>
+        </div>
       </div>
+      <div class="hint" style="margin-top:0;margin-bottom:12px;">🔒 ข้อมูลประวัติการสแกนถูกเก็บไว้ในเบราว์เซอร์ของคุณเท่านั้น (Local/Session Storage) ไม่ถูกส่งขึ้นเซิร์ฟเวอร์ และผู้ใช้งานคนอื่นที่เข้าเว็บไซต์นี้จะไม่สามารถมองเห็นประวัติของคุณได้</div>
       <div id="history-list" class="history-list">
         <div class="hint">ยังไม่มีประวัติการสแกน</div>
       </div>
@@ -957,6 +968,42 @@
       const IGNORED_DIRS = new Set([".git", ".svn", ".hg", "node_modules", "venv", ".venv", "env", "__pycache__", "dist", "build", ".next"]);
       const SUPPORTED_EXT = new Set([".py", ".js", ".gs", ".ts", ".jsx", ".tsx", ".html", ".htm", ".php", ".env", ".json", ".yml", ".yaml"]);
       const HISTORY_KEY = "cwva_scan_history_v1";
+      const HISTORY_MODE_KEY = "cwva_history_mode_v1";
+
+      function getHistoryMode() {
+        try {
+          return localStorage.getItem(HISTORY_MODE_KEY) === "session" ? "session" : "local";
+        } catch (_e) {
+          return "local";
+        }
+      }
+
+      function getHistoryStorage() {
+        if (getHistoryMode() === "session" && typeof sessionStorage !== "undefined") {
+          return sessionStorage;
+        }
+        return localStorage;
+      }
+
+      function setHistoryMode(mode) {
+        const safeMode = mode === "session" ? "session" : "local";
+        try {
+          const current = listHistory();
+          localStorage.setItem(HISTORY_MODE_KEY, safeMode);
+          if (safeMode === "session") {
+            if (typeof sessionStorage !== "undefined") {
+              sessionStorage.setItem(HISTORY_KEY, JSON.stringify(current));
+            }
+            localStorage.setItem(HISTORY_KEY, "[]");
+          } else {
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(current));
+            if (typeof sessionStorage !== "undefined") {
+              sessionStorage.setItem(HISTORY_KEY, "[]");
+            }
+          }
+        } catch (_e) {}
+        return safeMode;
+      }
 
       function buildContextSnippet(lines, lineNo, radius = 2) {
         if (!lines || lineNo < 1 || lineNo > lines.length) return "";
@@ -1636,23 +1683,41 @@
           markdown_report: report.markdown_report || "", hardening_snippets: report.hardening_snippets || [],
         };
         try {
-          const prev = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+          const storage = getHistoryStorage();
+          const prev = JSON.parse(storage.getItem(HISTORY_KEY) || "[]");
           const list = Array.isArray(prev) ? prev.filter((r) => r.id !== id) : [];
           list.unshift(record);
-          localStorage.setItem(HISTORY_KEY, JSON.stringify(list.slice(0, 20)));
+          storage.setItem(HISTORY_KEY, JSON.stringify(list.slice(0, 20)));
         } catch (_e) {}
         return record;
       }
 
       function listHistory() {
         try {
-          const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+          const storage = getHistoryStorage();
+          const list = JSON.parse(storage.getItem(HISTORY_KEY) || "[]");
           return Array.isArray(list) ? list : [];
         } catch (_e) { return []; }
       }
 
       function getHistoryRecord(id) {
         return listHistory().find((r) => r.id === id) || null;
+      }
+
+      function deleteHistoryRecord(id) {
+        try {
+          const storage = getHistoryStorage();
+          const filtered = listHistory().filter((r) => r.id !== id);
+          storage.setItem(HISTORY_KEY, JSON.stringify(filtered));
+          return filtered;
+        } catch (_e) { return []; }
+      }
+
+      function clearHistory() {
+        try { localStorage.setItem(HISTORY_KEY, "[]"); } catch (_e) {}
+        if (typeof sessionStorage !== "undefined") {
+          try { sessionStorage.setItem(HISTORY_KEY, "[]"); } catch (_e) {}
+        }
       }
 
       function compareScans(oldRec, newRec) {
@@ -2284,7 +2349,8 @@
 
       return {
         scanSnippet, scanFileEntries, scanDemo, scanWebUrl, scanSelfDashboard,
-        listHistory, getHistoryRecord, compareScans, IGNORED_DIRS,
+        listHistory, getHistoryRecord, deleteHistoryRecord, clearHistory,
+        getHistoryMode, setHistoryMode, compareScans, IGNORED_DIRS,
       };
     })();
   </script>
@@ -3048,6 +3114,7 @@ function callApi(url, expr) {
             <div class="actions">
               <button class="btn btn-secondary btn-mini view-history-btn" data-id="${escapeHtml(item.id)}" type="button">👁️ ดูผล</button>
               ${currentId && !isCurrent ? `<button class="btn btn-demo btn-mini compare-history-btn" data-id="${escapeHtml(item.id)}" type="button">⚖️ เปรียบเทียบกับผลปัจจุบัน</button>` : ""}
+              <button class="btn btn-secondary btn-mini delete-history-btn" data-id="${escapeHtml(item.id)}" type="button" style="border-color:rgba(251,113,133,0.35);color:#fda4af;">🗑️ ลบ</button>
             </div>
           </div>
         `;
@@ -3058,6 +3125,13 @@ function callApi(url, expr) {
       });
       listEl.querySelectorAll(".compare-history-btn").forEach((btn) => {
         btn.addEventListener("click", () => compareWithCurrent(btn.dataset.id));
+      });
+      listEl.querySelectorAll(".delete-history-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          ClientEngine.deleteHistoryRecord(btn.dataset.id);
+          loadHistory();
+          notifyToast("info", "ลบรายการประวัติแล้ว");
+        });
       });
     }
 
@@ -3185,6 +3259,49 @@ function callApi(url, expr) {
 
     incrementUsageCounter("visits", "visitor-count", "header-visitor-count");
     readScanCounter();
+
+    const historyModeSelect = document.getElementById("history-mode-select");
+    if (historyModeSelect) {
+      historyModeSelect.value = ClientEngine.getHistoryMode();
+      historyModeSelect.addEventListener("change", () => {
+        const mode = ClientEngine.setHistoryMode(historyModeSelect.value);
+        loadHistory();
+        notifyToast(
+          "info",
+          mode === "session"
+            ? "เปิดโหมดคอมส่วนกลาง: ประวัติจะถูกลบอัตโนมัติเมื่อปิดแท็บ"
+            : "เปิดโหมดปกติ: เก็บประวัติเฉพาะในเบราว์เซอร์เครื่องนี้เท่านั้น"
+        );
+      });
+    }
+
+    document.getElementById("clear-history-btn").addEventListener("click", async () => {
+      const items = ClientEngine.listHistory();
+      if (!items || items.length === 0) {
+        notifyToast("info", "ยังไม่มีประวัติให้ล้าง");
+        return;
+      }
+      if (typeof Swal !== "undefined") {
+        const res = await Swal.fire({
+          icon: "warning",
+          title: "ยืนยันการล้างประวัติการสแกนทั้งหมด?",
+          text: `พบประวัติ ${items.length} รายการในเบราว์เซอร์นี้ (ข้อมูลจะไม่สามารถกู้คืนได้)`,
+          showCancelButton: true,
+          confirmButtonText: "ใช่, ล้างทั้งหมด",
+          cancelButtonText: "ยกเลิก",
+          background: "rgba(17, 20, 48, 0.96)",
+          color: "#f8fafc",
+          confirmButtonColor: "#fb7185",
+          cancelButtonColor: "#475569",
+        });
+        if (!res.isConfirmed) return;
+      }
+      ClientEngine.clearHistory();
+      const cmpCard = document.getElementById("comparison-card");
+      if (cmpCard) cmpCard.style.display = "none";
+      loadHistory();
+      notifyToast("success", "ล้างประวัติการสแกนทั้งหมดเรียบร้อยแล้ว");
+    });
 
     document.getElementById("refresh-history-btn").addEventListener("click", loadHistory);
     loadHistory();
