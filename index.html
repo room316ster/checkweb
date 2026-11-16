@@ -1,0 +1,1496 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>โปรแกรมตรวจสอบจุดอ่อนซอร์สโค้ดและเว็บแอปพลิเคชัน</title>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --surface: #111827;
+      --surface-2: #1e293b;
+      --border: #2b384e;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-hover: #0ea5e9;
+      --critical: #ef4444;
+      --high: #f97316;
+      --medium: #eab308;
+      --low: #3b82f6;
+      --info: #64748b;
+      --success: #22c55e;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Noto Sans Thai", system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at top right, #172554 0%, var(--bg) 55%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 28px 20px 60px;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand h1 {
+      margin: 0 0 6px;
+      font-size: 1.55rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    .badge-pill {
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.14);
+      color: var(--accent);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      font-weight: 600;
+    }
+
+    .panel {
+      background: rgba(17, 24, 39, 0.9);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+      margin-bottom: 22px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .tab-btn {
+      background: var(--surface-2);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .tab-btn.active {
+      background: rgba(56, 189, 248, 0.16);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    input[type="text"], select, textarea {
+      background: #0f172a;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    input[type="text"]:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+    }
+
+    textarea.code-editor {
+      width: 100%;
+      min-height: 170px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 0.88rem;
+      line-height: 1.5;
+      margin-top: 10px;
+      resize: vertical;
+    }
+
+    .grow { flex: 1 1 320px; }
+
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 11px 18px;
+      font-size: 0.93rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.08s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn:active { transform: translateY(1px); }
+    .btn-primary { background: var(--accent); color: #082f49; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: #293548; }
+    .btn-demo {
+      background: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+    .btn-demo:hover { background: rgba(34, 197, 94, 0.25); }
+
+    .hint {
+      margin-top: 10px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .status-banner {
+      display: none;
+      padding: 12px 16px;
+      border-radius: 10px;
+      margin-bottom: 18px;
+      font-size: 0.93rem;
+    }
+    .status-banner.error {
+      display: block;
+      background: rgba(239, 68, 68, 0.14);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #fecaca;
+    }
+    .status-banner.loading {
+      display: block;
+      background: rgba(56, 189, 248, 0.14);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      color: #bae6fd;
+    }
+
+    #results-section { display: none; }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 20px;
+      align-items: stretch;
+    }
+
+    @media (max-width: 780px) {
+      .summary-grid { grid-template-columns: 1fr; }
+    }
+
+    .score-card {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .grade-circle {
+      width: 82px;
+      height: 82px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.2rem;
+      font-weight: 800;
+      margin-bottom: 10px;
+      border: 4px solid var(--accent);
+    }
+
+    .score-num { font-size: 1.35rem; font-weight: 700; }
+    .score-label { font-size: 0.85rem; color: var(--muted); }
+
+    .bars-card {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .sev-bar-row {
+      display: grid;
+      grid-template-columns: 95px 1fr 48px;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.86rem;
+    }
+
+    .bar-track {
+      height: 10px;
+      background: var(--surface-2);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.3s ease;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      margin: 18px 0;
+    }
+
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      flex: 1 1 auto;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .finding-card {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-left: 5px solid var(--info);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 14px;
+    }
+
+    .finding-card.sev-CRITICAL { border-left-color: var(--critical); }
+    .finding-card.sev-HIGH { border-left-color: var(--high); }
+    .finding-card.sev-MEDIUM { border-left-color: var(--medium); }
+    .finding-card.sev-LOW { border-left-color: var(--low); }
+    .finding-card.sev-INFO { border-left-color: var(--info); }
+
+    .finding-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .finding-title {
+      font-size: 1.03rem;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .badges {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      font-size: 0.74rem;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 6px;
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .tag.sev-CRITICAL { background: rgba(239, 68, 68, 0.18); color: #fca5a5; border-color: rgba(239, 68, 68, 0.45); }
+    .tag.sev-HIGH { background: rgba(249, 115, 22, 0.18); color: #fdba74; border-color: rgba(249, 115, 22, 0.45); }
+    .tag.sev-MEDIUM { background: rgba(234, 179, 8, 0.18); color: #fde047; border-color: rgba(234, 179, 8, 0.45); }
+    .tag.sev-LOW { background: rgba(59, 130, 246, 0.18); color: #93c5fd; border-color: rgba(59, 130, 246, 0.45); }
+    .tag.sev-INFO { background: rgba(100, 116, 139, 0.22); color: #cbd5e1; border-color: rgba(100, 116, 139, 0.45); }
+
+    .location {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 0.84rem;
+      color: var(--accent);
+      margin-bottom: 10px;
+      word-break: break-all;
+    }
+
+    .code-box {
+      background: #020617;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 0.84rem;
+      color: #e2e8f0;
+      overflow-x: auto;
+      margin-bottom: 10px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .detail-block {
+      font-size: 0.91rem;
+      line-height: 1.55;
+      color: #cbd5e1;
+      margin: 6px 0;
+    }
+
+    .remediation-box {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: rgba(34, 197, 94, 0.08);
+      border: 1px solid rgba(34, 197, 94, 0.28);
+      font-size: 0.9rem;
+      color: #bbf7d0;
+      line-height: 1.5;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 36px 20px;
+      color: var(--muted);
+    }
+
+    .ai-prompt-panel {
+      border-color: rgba(56, 189, 248, 0.45);
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(17, 24, 39, 0.96));
+    }
+
+    .ai-prompt-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .ai-prompt-header h3 {
+      margin: 0;
+      font-size: 1.05rem;
+      color: var(--accent);
+    }
+
+    .ai-prompt-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .checkbox-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.88rem;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .finding-actions {
+      margin-top: 10px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .btn-mini {
+      padding: 7px 12px;
+      font-size: 0.82rem;
+      border-radius: 8px;
+    }
+
+    .section-title {
+      font-size: 1.06rem;
+      margin: 0 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .snippet-card {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .snippet-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .history-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+
+    .history-meta {
+      font-size: 0.84rem;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    .compare-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .compare-stat {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .compare-stat .big {
+      font-size: 1.4rem;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .owasp-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 10px;
+    }
+
+    .owasp-pill {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      color: var(--text);
+      cursor: pointer;
+      text-align: left;
+      font-size: 0.84rem;
+      transition: border-color 0.15s ease, transform 0.08s ease;
+    }
+
+    .owasp-pill:hover { transform: translateY(-1px); border-color: var(--accent); }
+    .owasp-pill.pass { border-left: 4px solid var(--success); }
+    .owasp-pill.fail { border-left: 4px solid var(--critical); }
+    .owasp-pill.active-filter { border-color: var(--accent); background: rgba(56, 189, 248, 0.12); }
+
+    .owasp-status {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .owasp-status.pass { background: rgba(34, 197, 94, 0.16); color: #4ade80; }
+    .owasp-status.fail { background: rgba(239, 68, 68, 0.18); color: #fca5a5; }
+
+    .tag.cvss { background: rgba(244, 63, 94, 0.16); color: #fda4af; border-color: rgba(244, 63, 94, 0.35); }
+    .tag.owasp { background: rgba(56, 189, 248, 0.14); color: #7dd3fc; border-color: rgba(56, 189, 248, 0.35); }
+
+    @media print {
+      body { background: #fff; color: #000; }
+      .panel { box-shadow: none; border-color: #ccc; background: #fff; }
+      .tabs, .tab-content, .toolbar, .hint, .ai-prompt-panel, .finding-actions, #history-section, #hardening-section { display: none !important; }
+      #results-section { display: block !important; }
+      .finding-card { break-inside: avoid; background: #fff; color: #000; border-color: #ccc; }
+      .code-box { background: #f8fafc; color: #0f172a; }
+      .detail-block { color: #1e293b; }
+      .remediation-box { background: #f0fdf4; color: #14532d; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <h1>🛡️ Code &amp; Web Vulnerability Auditor</h1>
+        <p>เครื่องมือตรวจสอบจุดอ่อนซอร์สโค้ด ไลบรารี และการตั้งค่าความปลอดภัยของเว็บแอปพลิเคชัน</p>
+      </div>
+      <span class="badge-pill">SAST + Dependency + Passive Web Audit</span>
+    </header>
+
+    <div class="panel">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="web-tab">🌐 1. ใส่ลิงก์เว็บไซต์เพื่อตรวจสอบ (Scan Website URL)</button>
+        <button class="tab-btn" data-tab="code-tab">📁 2. สแกนซอร์สโค้ด (Source Code Scanner)</button>
+        <button class="tab-btn" data-tab="snippet-tab">📋 3. วางโค้ด Apps Script / โค้ดทั่วไป (Paste Code)</button>
+      </div>
+
+      <div id="web-tab" class="tab-content active">
+        <div class="input-row">
+          <input type="text" id="web-url-input" class="grow" placeholder="วางลิงก์เว็บไซต์หรือ Google Apps Script เช่น https://script.google.com/macros/s/.../exec หรือ http://127.0.0.1:5050" />
+          <button class="btn btn-primary" id="scan-web-btn" type="button">🌐 ตรวจสอบลิงก์เว็บไซต์</button>
+          <button class="btn btn-demo" id="scan-self-btn" type="button">⚡ ทดสอบสแกนเว็บ Dashboard นี้</button>
+        </div>
+        <div class="hint">
+          ตรวจสอบครบทั้ง Security Headers, HTTPS/HSTS, Cookie Flags, CORS, โครงสร้าง HTML, โค้ด JavaScript หน้าบ้าน, และถอดรหัสหน้าเว็บ Google Apps Script (<code>goog.script.init</code> / <code>google.script.run</code>) อัตโนมัติ
+        </div>
+      </div>
+
+      <div id="code-tab" class="tab-content">
+        <div class="input-row">
+          <input type="text" id="code-path-input" class="grow" placeholder="ระบุ Path ของโฟลเดอร์หรือไฟล์โปรเจกต์ เช่น D:\python\my_project" />
+          <button class="btn btn-secondary" id="browse-btn" type="button">📁 เลือกโฟลเดอร์...</button>
+          <button class="btn btn-primary" id="scan-code-btn" type="button">🔍 เริ่มสแกนโค้ด</button>
+          <button class="btn btn-demo" id="scan-demo-btn" type="button">⚡ ทดลองสแกนโปรเจกต์ตัวอย่าง (Demo)</button>
+        </div>
+        <div class="hint">
+          รองรับไฟล์ <code>.py</code>, <code>.gs</code> (Apps Script), <code>.js</code>, <code>.ts</code>, <code>.jsx</code>, <code>.tsx</code>, <code>.html</code>, <code>.php</code>, <code>.env</code>, <code>appsscript.json</code>, <code>requirements.txt</code>, <code>package.json</code>, <code>Dockerfile</code>
+        </div>
+      </div>
+
+      <div id="snippet-tab" class="tab-content">
+        <div class="input-row">
+          <label for="snippet-filename" style="font-size:0.9rem;color:var(--muted);">ชนิดไฟล์:</label>
+          <select id="snippet-filename">
+            <option value="Code.gs">Code.gs (Google Apps Script)</option>
+            <option value="index.html">index.html (Apps Script HTML / Web)</option>
+            <option value="appsscript.json">appsscript.json (Apps Script Manifest)</option>
+            <option value="app.py">app.py (Python)</option>
+            <option value="script.js">script.js (JavaScript)</option>
+          </select>
+          <button class="btn btn-primary" id="scan-snippet-btn" type="button">🔍 สแกนโค้ดที่วาง</button>
+          <button class="btn btn-demo" id="load-gas-sample-btn" type="button">⚡ โหลดตัวอย่างโค้ด Apps Script</button>
+        </div>
+        <textarea id="snippet-code-input" class="code-editor" placeholder="คัดลอกโค้ดจากหน้าแก้ไข Google Apps Script (Code.gs, index.html, appsscript.json) หรือโค้ดอื่นๆ มาวางที่นี่เพื่อตรวจสอบ..."></textarea>
+        <div class="hint">
+          เหมาะสำหรับโปรเจกต์ Google Apps Script ที่อยู่บน Google Drive / script.google.com โดยไม่ต้องดาวน์โหลดไฟล์ลงเครื่อง
+        </div>
+      </div>
+    </div>
+
+    <div id="status-banner" class="status-banner"></div>
+
+    <div id="results-section">
+      <div class="panel">
+        <div class="summary-grid">
+          <div class="score-card">
+            <div class="grade-circle" id="grade-circle">-</div>
+            <div class="score-num"><span id="score-value">0</span> / 100</div>
+            <div class="score-label" id="scan-meta-label">คะแนนความปลอดภัย</div>
+            <div class="hint" id="max-cvss-label" style="margin-top:6px;">Max CVSS v3.1: 0.0</div>
+          </div>
+          <div class="bars-card" id="severity-bars"></div>
+        </div>
+      </div>
+
+      <div id="owasp-matrix-panel" class="panel" style="display:none;">
+        <div class="section-title">
+          <span>🛡️ OWASP Top 10 (2021) Compliance Matrix (คลิกเพื่อกรอง)</span>
+          <button class="btn btn-secondary btn-mini" id="clear-owasp-filter-btn" type="button" style="display:none;">แสดงทั้งหมด</button>
+        </div>
+        <div id="owasp-grid" class="owasp-grid"></div>
+      </div>
+
+      <div class="toolbar">
+        <div class="filters">
+          <select id="filter-severity">
+            <option value="ALL">ความรุนแรง: ทั้งหมด</option>
+            <option value="CRITICAL">CRITICAL</option>
+            <option value="HIGH">HIGH</option>
+            <option value="MEDIUM">MEDIUM</option>
+            <option value="LOW">LOW</option>
+            <option value="INFO">INFO</option>
+          </select>
+          <select id="filter-category">
+            <option value="ALL">หมวดหมู่: ทั้งหมด</option>
+          </select>
+          <select id="filter-owasp">
+            <option value="ALL">OWASP Top 10: ทั้งหมด</option>
+          </select>
+          <input type="text" id="filter-search" placeholder="ค้นหาชื่อไฟล์, กฎ หรือข้อความ..." style="min-width: 240px;" />
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" id="copy-prompt-btn" type="button">📋 คัดลอก AI Prompt</button>
+          <button class="btn btn-secondary" id="toggle-prompt-btn" type="button">🤖 ซ่อน/แสดง กล่อง AI Prompt</button>
+          <button class="btn btn-secondary" id="export-html-btn" type="button">📄 ดาวน์โหลด HTML Report</button>
+          <button class="btn btn-secondary" id="export-md-btn" type="button">📝 ดาวน์โหลด Markdown (.md)</button>
+          <button class="btn btn-secondary" id="export-json-btn" type="button">⬇️ ดาวน์โหลด JSON</button>
+          <button class="btn btn-secondary" id="print-btn" type="button">🖨️ พิมพ์ / บันทึก PDF</button>
+        </div>
+      </div>
+
+      <div id="ai-prompt-panel" class="panel ai-prompt-panel">
+        <div class="ai-prompt-header">
+          <div>
+            <h3>🤖 AI Prompt พร้อมใช้งาน (คัดลอกไปวางใน ChatGPT / Claude / Gemini)</h3>
+            <div class="hint" style="margin-top:4px;">สรุปจุดอ่อน ตำแหน่ง และแนวทางแก้ไขเป็นคำสั่งพร้อมให้ AI ช่วยเขียนโค้ดปิดช่องโหว่ทันที</div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-primary btn-mini" id="copy-prompt-inner-btn" type="button">📋 คัดลอก Prompt</button>
+            <button class="btn btn-secondary btn-mini" id="download-prompt-btn" type="button">⬇️ ดาวน์โหลด .txt</button>
+          </div>
+        </div>
+        <div class="ai-prompt-controls">
+          <select id="prompt-scope">
+            <option value="filtered">ขอบเขต: รายการที่แสดงตามตัวกรองปัจจุบัน</option>
+            <option value="critical_high">ขอบเขต: เฉพาะระดับ CRITICAL และ HIGH</option>
+          </select>
+          <select id="prompt-style">
+            <option value="full">คำตอบ: ขอโค้ดฉบับแก้ไขสมบูรณ์พร้อมใช้งานทันที</option>
+            <option value="diff">คำตอบ: เปรียบเทียบโค้ดเดิม vs โค้ดใหม่ทีละจุด (Before / After)</option>
+          </select>
+          <label class="checkbox-label" id="prompt-include-source-wrap" style="display:none;">
+            <input type="checkbox" id="prompt-include-source" checked />
+            แนบโค้ดต้นฉบับที่วางไว้ท้าย Prompt
+          </label>
+        </div>
+        <textarea id="ai-prompt-textarea" class="code-editor" style="min-height: 220px;"></textarea>
+      </div>
+
+      <div id="comparison-card" class="panel" style="display:none; border-color: rgba(34, 197, 94, 0.45);"></div>
+
+      <div id="findings-list"></div>
+
+      <div id="hardening-section" class="panel" style="display:none; margin-top: 20px;">
+        <div class="section-title">
+          <span>🛠️ โค้ดป้องกันสำเร็จรูป (Quick Hardening Snippets)</span>
+        </div>
+        <div id="hardening-list"></div>
+      </div>
+    </div>
+
+    <div id="history-section" class="panel" style="margin-top: 22px;">
+      <div class="section-title">
+        <span>📊 ประวัติการสแกน &amp; เปรียบเทียบผลก่อน-หลังแก้ไข (Scan History &amp; Compare)</span>
+        <button class="btn btn-secondary btn-mini" id="refresh-history-btn" type="button">🔄 รีเฟรชประวัติ</button>
+      </div>
+      <div id="history-list" class="history-list">
+        <div class="hint">ยังไม่มีประวัติการสแกน</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentReport = null;
+    let lastFilteredFindings = [];
+
+    const SEVERITY_COLORS = {
+      CRITICAL: "#ef4444",
+      HIGH: "#f97316",
+      MEDIUM: "#eab308",
+      LOW: "#3b82f6",
+      INFO: "#64748b",
+    };
+
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function showBanner(type, message) {
+      const el = document.getElementById("status-banner");
+      if (!message) {
+        el.className = "status-banner";
+        el.textContent = "";
+        return;
+      }
+      el.className = `status-banner ${type}`;
+      el.textContent = message;
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll(".tab-btn").forEach((b) => {
+        b.classList.toggle("active", b.dataset.tab === tabId);
+      });
+      document.querySelectorAll(".tab-content").forEach((c) => {
+        c.classList.toggle("active", c.id === tabId);
+      });
+    }
+
+    // Tab switching
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        switchTab(btn.dataset.tab);
+      });
+    });
+
+    async function runCodeScan(targetPath) {
+      showBanner("loading", "กำลังวิเคราะห์ซอร์สโค้ดและไฟล์กำหนดค่า กรุณารอสักครู่...");
+      try {
+        const res = await fetch("/api/scan/code", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path: targetPath }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          showBanner("error", data.error || "เกิดข้อผิดพลาดในการสแกนซอร์สโค้ด");
+          return;
+        }
+        showBanner("", "");
+        renderReport(data);
+      } catch (err) {
+        showBanner("error", "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: " + err.message);
+      }
+    }
+
+    async function runSnippetScan(codeText, filename) {
+      showBanner("loading", `กำลังวิเคราะห์โค้ด (${filename}) กรุณารอสักครู่...`);
+      try {
+        const res = await fetch("/api/scan/snippet", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: codeText, filename: filename }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          showBanner("error", data.error || "เกิดข้อผิดพลาดในการสแกนโค้ด");
+          return;
+        }
+        showBanner("", "");
+        renderReport(data);
+      } catch (err) {
+        showBanner("error", "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: " + err.message);
+      }
+    }
+
+    async function runWebScan(targetUrl) {
+      showBanner("loading", "กำลังตรวจสอบการตั้งค่า HTTP และ Security Headers ของเว็บไซต์...");
+      try {
+        const res = await fetch("/api/scan/web", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: targetUrl }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          showBanner("error", data.error || "เกิดข้อผิดพลาดในการตรวจสอบเว็บไซต์");
+          return;
+        }
+        showBanner("", "");
+        renderReport(data);
+      } catch (err) {
+        showBanner("error", "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: " + err.message);
+      }
+    }
+
+    document.getElementById("scan-code-btn").addEventListener("click", () => {
+      const val = document.getElementById("code-path-input").value.trim();
+      if (!val) {
+        showBanner("error", "กรุณาระบุ Path ของโฟลเดอร์หรือไฟล์ หรือกดปุ่ม Demo");
+        return;
+      }
+      if (/^https?:\/\//i.test(val)) {
+        switchTab("web-tab");
+        document.getElementById("web-url-input").value = val;
+        runWebScan(val);
+        return;
+      }
+      runCodeScan(val);
+    });
+
+    document.getElementById("code-path-input").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        document.getElementById("scan-code-btn").click();
+      }
+    });
+
+    document.getElementById("scan-demo-btn").addEventListener("click", () => {
+      document.getElementById("code-path-input").value = "demo";
+      runCodeScan("demo");
+    });
+
+    document.getElementById("browse-btn").addEventListener("click", async () => {
+      try {
+        const res = await fetch("/api/browse");
+        const data = await res.json();
+        if (data.success && data.path) {
+          document.getElementById("code-path-input").value = data.path;
+        } else if (data.error) {
+          showBanner("error", data.error);
+        }
+      } catch (err) {
+        showBanner("error", "ไม่สามารถเปิดหน้าต่างเลือกโฟลเดอร์ได้: " + err.message);
+      }
+    });
+
+    document.getElementById("scan-snippet-btn").addEventListener("click", () => {
+      const codeText = document.getElementById("snippet-code-input").value;
+      const filename = document.getElementById("snippet-filename").value;
+      if (!codeText.trim()) {
+        showBanner("error", "กรุณาวางโค้ดที่ต้องการตรวจสอบ หรือกดปุ่มโหลดตัวอย่าง");
+        return;
+      }
+      runSnippetScan(codeText, filename);
+    });
+
+    document.getElementById("load-gas-sample-btn").addEventListener("click", () => {
+      document.getElementById("snippet-filename").value = "Code.gs";
+      document.getElementById("snippet-code-input").value =
+`const API_KEY = "sk-gasdemo1234567890abcdef123456";
+const SPREADSHEET_ID = "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms";
+
+function doGet(e) {
+  const tpl = HtmlService.createTemplateFromFile("index");
+  return tpl.evaluate().setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function callApi(url, expr) {
+  UrlFetchApp.fetch(url, { validateHttpsCertificates: false });
+  return eval(expr);
+}`;
+    });
+
+    document.getElementById("scan-web-btn").addEventListener("click", () => {
+      const val = document.getElementById("web-url-input").value.trim();
+      if (!val) {
+        showBanner("error", "กรุณาระบุ URL ที่ต้องการตรวจสอบ");
+        return;
+      }
+      runWebScan(val);
+    });
+
+    document.getElementById("web-url-input").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        document.getElementById("scan-web-btn").click();
+      }
+    });
+
+    document.getElementById("scan-self-btn").addEventListener("click", () => {
+      const selfUrl = window.location.origin;
+      document.getElementById("web-url-input").value = selfUrl;
+      runWebScan(selfUrl);
+    });
+
+    function renderReport(report) {
+      currentReport = report;
+      document.getElementById("results-section").style.display = "block";
+
+      const { summary, findings, meta } = report;
+      const gradeEl = document.getElementById("grade-circle");
+      gradeEl.textContent = summary.grade;
+      const gradeColors = { A: "#22c55e", B: "#38bdf8", C: "#eab308", D: "#f97316", F: "#ef4444" };
+      const gColor = gradeColors[summary.grade] || "#38bdf8";
+      gradeEl.style.borderColor = gColor;
+      gradeEl.style.color = gColor;
+
+      document.getElementById("score-value").textContent = summary.score;
+      document.getElementById("max-cvss-label").textContent = `Max CVSS v3.1: ${summary.max_cvss ?? 0.0}`;
+      if (meta && meta.mode === "code") {
+        document.getElementById("scan-meta-label").textContent =
+          `สแกนแล้ว ${meta.scanned_files} ไฟล์ • พบ ${summary.total_findings} จุด`;
+      } else if (meta && meta.mode === "snippet") {
+        document.getElementById("scan-meta-label").textContent =
+          `ไฟล์ ${meta.filename} • พบ ${summary.total_findings} จุด`;
+      } else if (meta && meta.mode === "web") {
+        const scriptCount = meta.scanned_scripts || 0;
+        const gasTag = meta.unpacked_gas_html ? " • ถอดรหัส Apps Script แล้ว" : "";
+        document.getElementById("scan-meta-label").textContent =
+          `HTTP ${meta.status_code} • ตรวจ ${scriptCount} สคริปต์${gasTag} • พบ ${summary.total_findings} จุด`;
+      }
+
+      // Render severity bars
+      const barsEl = document.getElementById("severity-bars");
+      const maxCount = Math.max(1, ...Object.values(summary.severity_counts));
+      barsEl.innerHTML = Object.entries(summary.severity_counts)
+        .map(([sev, count]) => {
+          const pct = Math.round((count / maxCount) * 100);
+          const color = SEVERITY_COLORS[sev] || "#64748b";
+          return `
+            <div class="sev-bar-row">
+              <strong>${escapeHtml(sev)}</strong>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:${pct}%; background:${color};"></div>
+              </div>
+              <span style="text-align:right;">${count}</span>
+            </div>
+          `;
+        })
+        .join("");
+
+      // Populate category & OWASP filters
+      const catSelect = document.getElementById("filter-category");
+      const categories = Object.keys(summary.category_counts || {}).sort();
+      catSelect.innerHTML = `<option value="ALL">หมวดหมู่: ทั้งหมด</option>` +
+        categories.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)} (${summary.category_counts[c]})</option>`).join("");
+
+      const owaspSelect = document.getElementById("filter-owasp");
+      const owaspMatrix = summary.owasp_matrix || [];
+      owaspSelect.innerHTML = `<option value="ALL">OWASP Top 10: ทั้งหมด</option>` +
+        owaspMatrix.filter((m) => m.count > 0).map((m) => `<option value="${escapeHtml(m.category)}">${escapeHtml(m.category)} (${m.count})</option>`).join("");
+
+      document.getElementById("filter-severity").value = "ALL";
+      document.getElementById("filter-owasp").value = "ALL";
+      document.getElementById("filter-search").value = "";
+      document.getElementById("comparison-card").style.display = "none";
+      const includeWrap = document.getElementById("prompt-include-source-wrap");
+      includeWrap.style.display = meta && meta.mode === "snippet" ? "inline-flex" : "none";
+      renderOwaspMatrix(owaspMatrix);
+      renderFindingsList();
+      renderHardeningSnippets(report.hardening_snippets || []);
+      loadHistory();
+    }
+
+    function renderOwaspMatrix(matrix) {
+      const panel = document.getElementById("owasp-matrix-panel");
+      const grid = document.getElementById("owasp-grid");
+      const clearBtn = document.getElementById("clear-owasp-filter-btn");
+      if (!matrix || matrix.length === 0) {
+        panel.style.display = "none";
+        return;
+      }
+      panel.style.display = "block";
+      const selectedOwasp = document.getElementById("filter-owasp").value;
+      clearBtn.style.display = selectedOwasp !== "ALL" ? "inline-flex" : "none";
+
+      grid.innerHTML = matrix.map((row) => {
+        const isFail = row.status === "FAIL";
+        const isActive = selectedOwasp === row.category;
+        return `
+          <button type="button" class="owasp-pill ${isFail ? "fail" : "pass"} ${isActive ? "active-filter" : ""}" data-owasp="${escapeHtml(row.category)}">
+            <span><strong>${escapeHtml(row.code)}</strong> ${escapeHtml(row.category.split(" - ")[1] || "")}</span>
+            <span class="owasp-status ${isFail ? "fail" : "pass"}">${isFail ? `FAIL (${row.count})` : "PASS"}</span>
+          </button>
+        `;
+      }).join("");
+
+      grid.querySelectorAll(".owasp-pill").forEach((pill) => {
+        pill.addEventListener("click", () => {
+          const val = pill.dataset.owasp;
+          const select = document.getElementById("filter-owasp");
+          const hasOption = Array.from(select.options).some((o) => o.value === val);
+          if (!hasOption) return;
+          select.value = select.value === val ? "ALL" : val;
+          renderOwaspMatrix(matrix);
+          renderFindingsList();
+        });
+      });
+    }
+
+    document.getElementById("clear-owasp-filter-btn").addEventListener("click", () => {
+      document.getElementById("filter-owasp").value = "ALL";
+      if (currentReport && currentReport.summary) {
+        renderOwaspMatrix(currentReport.summary.owasp_matrix || []);
+      }
+      renderFindingsList();
+    });
+
+    function getFilteredFindings() {
+      if (!currentReport) return [];
+      const sevFilter = document.getElementById("filter-severity").value;
+      const catFilter = document.getElementById("filter-category").value;
+      const owaspFilter = document.getElementById("filter-owasp").value;
+      const q = document.getElementById("filter-search").value.trim().toLowerCase();
+
+      return currentReport.findings.filter((f) => {
+        if (sevFilter !== "ALL" && f.severity !== sevFilter) return false;
+        if (catFilter !== "ALL" && f.category !== catFilter) return false;
+        if (owaspFilter !== "ALL" && f.owasp !== owaspFilter) return false;
+        if (q) {
+          const haystack = `${f.rule_id} ${f.title} ${f.file_path} ${f.code_snippet} ${f.context_snippet || ""} ${f.description} ${f.cwe} ${f.owasp || ""}`.toLowerCase();
+          if (!haystack.includes(q)) return false;
+        }
+        return true;
+      });
+    }
+
+    function buildPromptText(targetFindings) {
+      if (!currentReport) return "";
+      const scope = document.getElementById("prompt-scope").value;
+      const style = document.getElementById("prompt-style").value;
+      const includeSource =
+        currentReport.meta &&
+        currentReport.meta.mode === "snippet" &&
+        document.getElementById("prompt-include-source").checked;
+
+      const sevFilter = document.getElementById("filter-severity").value;
+      const catFilter = document.getElementById("filter-category").value;
+      const owaspFilter = document.getElementById("filter-owasp").value;
+      const q = document.getElementById("filter-search").value.trim();
+
+      if (
+        scope === "filtered" &&
+        style === "full" &&
+        !includeSource &&
+        sevFilter === "ALL" &&
+        catFilter === "ALL" &&
+        owaspFilter === "ALL" &&
+        !q &&
+        currentReport.ai_prompt
+      ) {
+        return currentReport.ai_prompt;
+      }
+
+      const items =
+        scope === "critical_high"
+          ? currentReport.findings.filter((f) => f.severity === "CRITICAL" || f.severity === "HIGH")
+          : targetFindings;
+
+      const meta = currentReport.meta || {};
+      const summary = currentReport.summary || {};
+      let targetLabel = `โปรเจกต์/ไฟล์: ${meta.target || "-"}`;
+      if (meta.mode === "web") {
+        targetLabel = `เว็บไซต์ URL: ${meta.url || "-"}${meta.is_apps_script ? " (Google Apps Script Web App)" : ""}`;
+      } else if (meta.mode === "snippet") {
+        targetLabel = `โค้ดไฟล์: ${meta.filename || "Code.gs"}`;
+      }
+
+      const lines = [
+        "คุณคือผู้เชี่ยวชาญด้าน Application Security (AppSec) และนักพัฒนาซอฟต์แวร์อาวุโส",
+        "โปรดช่วยตรวจสอบและแก้ไขจุดอ่อนด้านความปลอดภัยและคุณภาพโค้ดจากผลการสแกนด้านล่างนี้ให้ถูกต้อง ปลอดภัย และพร้อมใช้งานจริง (Production-Ready)",
+        "",
+        "## ข้อมูลเป้าหมายที่ตรวจสอบ",
+        `- ${targetLabel}`,
+        `- คะแนนความปลอดภัยปัจจุบัน: ${summary.score ?? 0}/100 (เกรด ${summary.grade ?? "-"})`,
+        "",
+      ];
+
+      if (items.length === 0) {
+        lines.push("ไม่พบรายการจุดอ่อนตามเงื่อนไขที่เลือก กรุณาช่วยตรวจสอบแนวทางป้องกันเชิงลึก (Defense-in-Depth) เพิ่มเติม");
+      } else {
+        lines.push(`## รายการจุดอ่อนที่ต้องการแก้ไข (${items.length} รายการ)`);
+        items.forEach((f, idx) => {
+          const cwePart = f.cwe ? ` / ${f.cwe}` : "";
+          const cvss = f.cvss_score ?? 0.0;
+          lines.push(`\n### ${idx + 1}. [${f.severity} | CVSS ${cvss}] (${f.rule_id}${cwePart}) ${f.title}`);
+          if (f.owasp) lines.push(`- มาตรฐาน OWASP: ${f.owasp}`);
+          lines.push(`- ตำแหน่ง: \`${f.file_path}:${f.line_number}\``);
+          if (f.context_snippet && f.context_snippet.includes("\n")) {
+            lines.push("- บริบทโค้ดที่พบ:", "```", f.context_snippet, "```");
+          } else if (f.code_snippet) {
+            lines.push(`- โค้ด/ค่าที่พบ: \`${f.code_snippet}\``);
+          }
+          if (f.description) lines.push(`- ความเสี่ยง: ${f.description}`);
+          if (f.remediation) lines.push(`- แนวทางแก้ไขเบื้องต้น: ${f.remediation}`);
+        });
+
+        lines.push("", "## สิ่งที่ต้องการให้ช่วยตอบกลับ");
+        if (style === "diff") {
+          lines.push("1. แสดงการเปรียบเทียบ **โค้ดเดิม vs โค้ดใหม่ที่ปลอดภัย (Before / After)** แยกทีละจุดอ่อน พร้อมคำอธิบายเหตุผล");
+        } else {
+          lines.push("1. **โค้ดฉบับแก้ไขสมบูรณ์** ที่ปิดจุดอ่อนทั้งหมดข้างต้นแล้ว พร้อมคอมเมนต์สั้นๆ อธิบายเฉพาะจุดสำคัญที่ปรับแก้ (รักษาฟังก์ชันการทำงานเดิมไว้ทั้งหมด)");
+        }
+        lines.push("2. **การตั้งค่าเพิ่มเติมที่จำเป็น** เช่น Security Headers, `.env` / `PropertiesService.getScriptProperties()`, หรือ `appsscript.json`");
+        lines.push("3. **รายการตรวจสอบซ้ำ (Verification Checklist)** หลังแก้ไข");
+      }
+
+      if (includeSource) {
+        const srcCode = document.getElementById("snippet-code-input").value.trim();
+        if (srcCode) {
+          lines.push("", `## โค้ดต้นฉบับ (${meta.filename || "Code.gs"})`, "```", srcCode, "```");
+        }
+      }
+
+      return lines.join("\n");
+    }
+
+    function buildSingleFindingPrompt(f) {
+      const meta = (currentReport && currentReport.meta) || {};
+      const cwePart = f.cwe ? ` / ${f.cwe}` : "";
+      const cvss = f.cvss_score ?? 0.0;
+      const targetDesc = meta.mode === "web" ? `เว็บไซต์ ${meta.url || "-"}` : `ไฟล์ ${f.file_path}`;
+      const lines = [
+        "คุณคือผู้เชี่ยวชาญด้าน Application Security (AppSec)",
+        `ช่วยแก้ไขจุดอ่อนด้านความปลอดภัยใน ${targetDesc} ตามรายละเอียดด้านล่างนี้:`,
+        "",
+        `- ปัญหา: [${f.severity} | CVSS ${cvss}] (${f.rule_id}${cwePart}) ${f.title}`,
+        `- มาตรฐาน OWASP: ${f.owasp || "-"}`,
+        `- ตำแหน่ง: \`${f.file_path}:${f.line_number}\``,
+      ];
+      if (f.context_snippet && f.context_snippet.includes("\n")) {
+        lines.push("- บริบทโค้ดที่พบ:", "```", f.context_snippet, "```");
+      } else if (f.code_snippet) {
+        lines.push(`- โค้ด/ค่าที่พบ: \`${f.code_snippet}\``);
+      }
+      if (f.description) lines.push(`- ความเสี่ยง: ${f.description}`);
+      if (f.remediation) lines.push(`- แนวทางแก้ไขแนะนำ: ${f.remediation}`);
+      lines.push(
+        "",
+        "กรุณาให้:",
+        "1. ตัวอย่างโค้ดหรือการตั้งค่าที่ปลอดภัยสำหรับแทนที่จุดนี้ทันที",
+        "2. คำอธิบายสั้นๆ ว่าทำไมวิธีใหม่ถึงปลอดภัยกว่า และจุดที่ต้องระวังเพิ่มเติม"
+      );
+      return lines.join("\n");
+    }
+
+    function updatePromptBox() {
+      document.getElementById("ai-prompt-textarea").value = buildPromptText(lastFilteredFindings);
+    }
+
+    async function copyTextWithFeedback(text, btn) {
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (_err) {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      if (btn) {
+        const original = btn.textContent;
+        btn.textContent = "✅ คัดลอกแล้ว!";
+        setTimeout(() => {
+          btn.textContent = original;
+        }, 1800);
+      }
+    }
+
+    function renderFindingsList() {
+      if (!currentReport) return;
+      const filtered = getFilteredFindings();
+      lastFilteredFindings = filtered;
+      updatePromptBox();
+
+      const listEl = document.getElementById("findings-list");
+      if (filtered.length === 0) {
+        listEl.innerHTML = `
+          <div class="panel empty-state">
+            ${currentReport.findings.length === 0
+              ? "✅ ยินดีด้วย! ไม่พบจุดอ่อนจากกฎการตรวจสอบในเป้าหมายนี้"
+              : "ไม่พบรายการที่ตรงกับตัวกรองที่เลือก"}
+          </div>`;
+        return;
+      }
+
+      listEl.innerHTML = filtered
+        .map((f, idx) => {
+          const displayCode = (f.context_snippet && f.context_snippet.trim()) ? f.context_snippet : f.code_snippet;
+          const owaspShort = f.owasp ? f.owasp.split(":")[0] : "";
+          return `
+          <div class="finding-card sev-${escapeHtml(f.severity)}">
+            <div class="finding-header">
+              <h3 class="finding-title">${escapeHtml(f.title)}</h3>
+              <div class="badges">
+                <span class="tag sev-${escapeHtml(f.severity)}">${escapeHtml(f.severity)}</span>
+                <span class="tag cvss">CVSS ${escapeHtml(f.cvss_score ?? 0)}</span>
+                ${owaspShort ? `<span class="tag owasp" title="${escapeHtml(f.owasp)}">${escapeHtml(owaspShort)}</span>` : ""}
+                <span class="tag">${escapeHtml(f.rule_id)}</span>
+                <span class="tag">${escapeHtml(f.category)}</span>
+                ${f.cwe ? `<span class="tag">${escapeHtml(f.cwe)}</span>` : ""}
+                ${f.confidence ? `<span class="tag">Conf: ${escapeHtml(f.confidence)}</span>` : ""}
+              </div>
+            </div>
+            <div class="location">📄 ${escapeHtml(f.file_path)} : บรรทัด ${escapeHtml(f.line_number)}</div>
+            ${displayCode ? `<pre class="code-box">${escapeHtml(displayCode)}</pre>` : ""}
+            <div class="detail-block"><strong>ความเสี่ยง:</strong> ${escapeHtml(f.description)}</div>
+            <div class="remediation-box"><strong>วิธีแก้ไข:</strong> ${escapeHtml(f.remediation)}</div>
+            <div class="finding-actions">
+              <button class="btn btn-secondary btn-mini copy-single-prompt-btn" data-index="${idx}" type="button">🤖 คัดลอก Prompt แก้จุดนี้</button>
+            </div>
+          </div>
+        `;
+        })
+        .join("");
+
+      listEl.querySelectorAll(".copy-single-prompt-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const item = lastFilteredFindings[Number(btn.dataset.index)];
+          if (item) {
+            copyTextWithFeedback(buildSingleFindingPrompt(item), btn);
+          }
+        });
+      });
+    }
+
+    document.getElementById("filter-severity").addEventListener("change", renderFindingsList);
+    document.getElementById("filter-category").addEventListener("change", renderFindingsList);
+    document.getElementById("filter-owasp").addEventListener("change", () => {
+      if (currentReport && currentReport.summary) {
+        renderOwaspMatrix(currentReport.summary.owasp_matrix || []);
+      }
+      renderFindingsList();
+    });
+    document.getElementById("filter-search").addEventListener("input", renderFindingsList);
+    document.getElementById("prompt-scope").addEventListener("change", updatePromptBox);
+    document.getElementById("prompt-style").addEventListener("change", updatePromptBox);
+    document.getElementById("prompt-include-source").addEventListener("change", updatePromptBox);
+
+    document.getElementById("toggle-prompt-btn").addEventListener("click", () => {
+      const panel = document.getElementById("ai-prompt-panel");
+      panel.style.display = panel.style.display === "none" ? "block" : "none";
+    });
+
+    document.getElementById("copy-prompt-btn").addEventListener("click", (e) => {
+      copyTextWithFeedback(document.getElementById("ai-prompt-textarea").value, e.currentTarget);
+    });
+
+    document.getElementById("copy-prompt-inner-btn").addEventListener("click", (e) => {
+      copyTextWithFeedback(document.getElementById("ai-prompt-textarea").value, e.currentTarget);
+    });
+
+    document.getElementById("download-prompt-btn").addEventListener("click", () => {
+      const text = document.getElementById("ai-prompt-textarea").value;
+      if (!text) return;
+      const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "ai-fix-prompt.txt";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById("export-html-btn").addEventListener("click", () => {
+      if (!currentReport) return;
+      const { summary, findings, meta } = currentReport;
+      const targetText = meta.url || meta.filename || meta.target || "-";
+      const rows = findings.map((f, i) => {
+        const displayCode = (f.context_snippet && f.context_snippet.trim()) ? f.context_snippet : f.code_snippet;
+        return `
+        <div style="border:1px solid #cbd5e1;border-left:5px solid #0284c7;border-radius:8px;padding:12px;margin-bottom:12px;">
+          <div><strong>${i + 1}. [${escapeHtml(f.severity)} | CVSS ${escapeHtml(f.cvss_score ?? 0)}] (${escapeHtml(f.rule_id)}${f.cwe ? " / " + escapeHtml(f.cwe) : ""}) ${escapeHtml(f.title)}</strong></div>
+          <div style="font-size:0.88rem;color:#475569;margin-top:4px;">${escapeHtml(f.owasp || "")}</div>
+          <div style="font-family:monospace;color:#0369a1;margin:6px 0;">${escapeHtml(f.file_path)}:${escapeHtml(f.line_number)}</div>
+          ${displayCode ? `<pre style="background:#f8fafc;padding:8px;border-radius:6px;overflow:auto;">${escapeHtml(displayCode)}</pre>` : ""}
+          <div><strong>ความเสี่ยง:</strong> ${escapeHtml(f.description)}</div>
+          <div style="margin-top:6px;color:#166534;"><strong>วิธีแก้ไข:</strong> ${escapeHtml(f.remediation)}</div>
+        </div>
+      `;
+      }).join("");
+
+      const htmlDoc = `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>Vulnerability Report</title></head>
+        <body style="font-family:system-ui,sans-serif;max-width:960px;margin:28px auto;padding:0 16px;color:#0f172a;">
+          <h1>รายงานตรวจสอบความปลอดภัย (Vulnerability Audit Report)</h1>
+          <p><strong>เป้าหมาย:</strong> ${escapeHtml(targetText)}<br>
+             <strong>คะแนนความปลอดภัย:</strong> ${escapeHtml(summary.score)}/100 (เกรด ${escapeHtml(summary.grade)})<br>
+             <strong>จำนวนจุดอ่อนทั้งหมด:</strong> ${escapeHtml(summary.total_findings)} รายการ</p>
+          <hr>${rows || "<p>ไม่พบจุดอ่อน</p>"}
+        </body></html>`;
+
+      const blob = new Blob([htmlDoc], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "vulnerability-report.html";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById("export-md-btn").addEventListener("click", () => {
+      if (!currentReport) return;
+      const md = currentReport.markdown_report || "";
+      const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "vulnerability-report.md";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById("export-json-btn").addEventListener("click", () => {
+      if (!currentReport) return;
+      const blob = new Blob([JSON.stringify(currentReport, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "vulnerability-report.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById("print-btn").addEventListener("click", () => {
+      window.print();
+    });
+
+    function renderHardeningSnippets(snippets) {
+      const sec = document.getElementById("hardening-section");
+      const list = document.getElementById("hardening-list");
+      if (!snippets || snippets.length === 0) {
+        sec.style.display = "none";
+        return;
+      }
+      sec.style.display = "block";
+      list.innerHTML = snippets.map((s, idx) => `
+        <div class="snippet-card">
+          <div class="snippet-head">
+            <strong>${escapeHtml(s.title)}</strong>
+            <button class="btn btn-secondary btn-mini copy-hardening-btn" data-idx="${idx}" type="button">📋 คัดลอกโค้ด</button>
+          </div>
+          <pre class="code-box" style="margin-bottom:0;">${escapeHtml(s.code)}</pre>
+        </div>
+      `).join("");
+
+      list.querySelectorAll(".copy-hardening-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const item = snippets[Number(btn.dataset.idx)];
+          if (item) copyTextWithFeedback(item.code, btn);
+        });
+      });
+    }
+
+    async function loadHistory() {
+      try {
+        const res = await fetch("/api/history");
+        const data = await res.json();
+        const listEl = document.getElementById("history-list");
+        if (!data.success || !data.history || data.history.length === 0) {
+          listEl.innerHTML = `<div class="hint">ยังไม่มีประวัติการสแกน</div>`;
+          return;
+        }
+        const currentId = currentReport && currentReport.meta ? currentReport.meta.scan_id : null;
+        listEl.innerHTML = data.history.map((item) => {
+          const isCurrent = currentId && item.id === currentId;
+          return `
+            <div class="history-item">
+              <div>
+                <strong>[${escapeHtml(item.mode.toUpperCase())}] ${escapeHtml(item.target_name)}</strong>
+                ${isCurrent ? `<span class="tag" style="margin-left:6px;color:var(--accent);">ผลปัจจุบัน</span>` : ""}
+                <div class="history-meta">
+                  🕒 ${escapeHtml(item.timestamp)} • คะแนน ${escapeHtml(item.score)}/100 (เกรด ${escapeHtml(item.grade)}) • พบ ${escapeHtml(item.total_findings)} จุด
+                </div>
+              </div>
+              <div class="actions">
+                <button class="btn btn-secondary btn-mini view-history-btn" data-id="${escapeHtml(item.id)}" type="button">👁️ ดูผล</button>
+                ${currentId && !isCurrent ? `<button class="btn btn-demo btn-mini compare-history-btn" data-id="${escapeHtml(item.id)}" type="button">⚖️ เปรียบเทียบกับผลปัจจุบัน</button>` : ""}
+              </div>
+            </div>
+          `;
+        }).join("");
+
+        listEl.querySelectorAll(".view-history-btn").forEach((btn) => {
+          btn.addEventListener("click", () => loadHistoryRecord(btn.dataset.id));
+        });
+        listEl.querySelectorAll(".compare-history-btn").forEach((btn) => {
+          btn.addEventListener("click", () => compareWithCurrent(btn.dataset.id));
+        });
+      } catch (_err) {}
+    }
+
+    async function loadHistoryRecord(scanId) {
+      try {
+        const res = await fetch(`/api/history/${encodeURIComponent(scanId)}`);
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showBanner("", "");
+          renderReport(data);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      } catch (err) {
+        showBanner("error", "ไม่สามารถโหลดประวัติได้: " + err.message);
+      }
+    }
+
+    async function compareWithCurrent(baseId) {
+      if (!currentReport || !currentReport.meta || !currentReport.meta.scan_id) return;
+      try {
+        const res = await fetch("/api/compare", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            base_id: baseId,
+            target_id: currentReport.meta.scan_id,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          showBanner("error", data.error || "ไม่สามารถเปรียบเทียบได้");
+          return;
+        }
+        const cmp = data.comparison;
+        const diffSign = cmp.score_diff > 0 ? `+${cmp.score_diff}` : `${cmp.score_diff}`;
+        const diffColor = cmp.score_diff >= 0 ? "#4ade80" : "#f87171";
+        const card = document.getElementById("comparison-card");
+        card.style.display = "block";
+        card.innerHTML = `
+          <div class="section-title">
+            <span>⚖️ ผลการเปรียบเทียบก่อน-หลังแก้ไข (Before vs After)</span>
+            <button class="btn btn-secondary btn-mini" id="close-compare-btn" type="button">ปิด</button>
+          </div>
+          <div class="compare-grid">
+            <div class="compare-stat">
+              <div class="big" style="color:${diffColor};">${escapeHtml(diffSign)} คะแนน</div>
+              <div class="hint" style="margin:0;">${escapeHtml(cmp.old_score)} (เกรด ${escapeHtml(cmp.old_grade)}) → ${escapeHtml(cmp.new_score)} (เกรด ${escapeHtml(cmp.new_grade)})</div>
+            </div>
+            <div class="compare-stat">
+              <div class="big" style="color:#4ade80;">✅ ${escapeHtml(cmp.resolved_count)}</div>
+              <div class="hint" style="margin:0;">จุดอ่อนที่แก้ไขแล้ว</div>
+            </div>
+            <div class="compare-stat">
+              <div class="big" style="color:#facc15;">⚠️ ${escapeHtml(cmp.remaining_count)}</div>
+              <div class="hint" style="margin:0;">จุดอ่อนที่ยังคงเหลือ</div>
+            </div>
+            <div class="compare-stat">
+              <div class="big" style="color:#f87171;">🆕 ${escapeHtml(cmp.new_count)}</div>
+              <div class="hint" style="margin:0;">จุดอ่อนที่พบใหม่</div>
+            </div>
+          </div>
+          ${cmp.resolved_findings.length > 0 ? `<div class="remediation-box"><strong>รายการที่แก้ไขสำเร็จแล้ว:</strong> ${cmp.resolved_findings.map((f) => `${escapeHtml(f.rule_id)} (${escapeHtml(f.file_path)})`).join(", ")}</div>` : ""}
+        `;
+        document.getElementById("close-compare-btn").addEventListener("click", () => {
+          card.style.display = "none";
+        });
+        card.scrollIntoView({ behavior: "smooth", block: "center" });
+      } catch (err) {
+        showBanner("error", "เกิดข้อผิดพลาดในการเปรียบเทียบ: " + err.message);
+      }
+    }
+
+    document.getElementById("refresh-history-btn").addEventListener("click", loadHistory);
+    loadHistory();
+  </script>
+</body>
+</html>
+
