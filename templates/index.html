@@ -1,0 +1,2695 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>โปรแกรมตรวจสอบจุดอ่อนซอร์สโค้ดและเว็บแอปพลิเคชัน</title>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --surface: #111827;
+      --surface-2: #1e293b;
+      --border: #2b384e;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-hover: #0ea5e9;
+      --critical: #ef4444;
+      --high: #f97316;
+      --medium: #eab308;
+      --low: #3b82f6;
+      --info: #64748b;
+      --success: #22c55e;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Noto Sans Thai", system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at top right, #172554 0%, var(--bg) 55%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 28px 20px 60px;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand h1 {
+      margin: 0 0 6px;
+      font-size: 1.55rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    .badge-pill {
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.14);
+      color: var(--accent);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      font-weight: 600;
+    }
+
+    .panel {
+      background: rgba(17, 24, 39, 0.9);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+      margin-bottom: 22px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .tab-btn {
+      background: var(--surface-2);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .tab-btn.active {
+      background: rgba(56, 189, 248, 0.16);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    input[type="text"], select, textarea {
+      background: #0f172a;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    input[type="text"]:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+    }
+
+    textarea.code-editor {
+      width: 100%;
+      min-height: 170px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 0.88rem;
+      line-height: 1.5;
+      margin-top: 10px;
+      resize: vertical;
+    }
+
+    .grow { flex: 1 1 320px; }
+
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 11px 18px;
+      font-size: 0.93rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.08s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn:active { transform: translateY(1px); }
+    .btn-primary { background: var(--accent); color: #082f49; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: #293548; }
+    .btn-demo {
+      background: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+    .btn-demo:hover { background: rgba(34, 197, 94, 0.25); }
+
+    .hint {
+      margin-top: 10px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .status-banner {
+      display: none;
+      padding: 12px 16px;
+      border-radius: 10px;
+      margin-bottom: 18px;
+      font-size: 0.93rem;
+    }
+    .status-banner.error {
+      display: block;
+      background: rgba(239, 68, 68, 0.14);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #fecaca;
+    }
+    .status-banner.loading {
+      display: block;
+      background: rgba(56, 189, 248, 0.14);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      color: #bae6fd;
+    }
+
+    #results-section { display: none; }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 20px;
+      align-items: stretch;
+    }
+
+    @media (max-width: 780px) {
+      .summary-grid { grid-template-columns: 1fr; }
+    }
+
+    .score-card {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .grade-circle {
+      width: 82px;
+      height: 82px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.2rem;
+      font-weight: 800;
+      margin-bottom: 10px;
+      border: 4px solid var(--accent);
+    }
+
+    .score-num { font-size: 1.35rem; font-weight: 700; }
+    .score-label { font-size: 0.85rem; color: var(--muted); }
+
+    .bars-card {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .sev-bar-row {
+      display: grid;
+      grid-template-columns: 95px 1fr 48px;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.86rem;
+    }
+
+    .bar-track {
+      height: 10px;
+      background: var(--surface-2);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.3s ease;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      margin: 18px 0;
+    }
+
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      flex: 1 1 auto;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .finding-card {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-left: 5px solid var(--info);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 14px;
+    }
+
+    .finding-card.sev-CRITICAL { border-left-color: var(--critical); }
+    .finding-card.sev-HIGH { border-left-color: var(--high); }
+    .finding-card.sev-MEDIUM { border-left-color: var(--medium); }
+    .finding-card.sev-LOW { border-left-color: var(--low); }
+    .finding-card.sev-INFO { border-left-color: var(--info); }
+
+    .finding-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .finding-title {
+      font-size: 1.03rem;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .badges {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      font-size: 0.74rem;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 6px;
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .tag.sev-CRITICAL { background: rgba(239, 68, 68, 0.18); color: #fca5a5; border-color: rgba(239, 68, 68, 0.45); }
+    .tag.sev-HIGH { background: rgba(249, 115, 22, 0.18); color: #fdba74; border-color: rgba(249, 115, 22, 0.45); }
+    .tag.sev-MEDIUM { background: rgba(234, 179, 8, 0.18); color: #fde047; border-color: rgba(234, 179, 8, 0.45); }
+    .tag.sev-LOW { background: rgba(59, 130, 246, 0.18); color: #93c5fd; border-color: rgba(59, 130, 246, 0.45); }
+    .tag.sev-INFO { background: rgba(100, 116, 139, 0.22); color: #cbd5e1; border-color: rgba(100, 116, 139, 0.45); }
+
+    .location {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 0.84rem;
+      color: var(--accent);
+      margin-bottom: 10px;
+      word-break: break-all;
+    }
+
+    .code-box {
+      background: #020617;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 0.84rem;
+      color: #e2e8f0;
+      overflow-x: auto;
+      margin-bottom: 10px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .detail-block {
+      font-size: 0.91rem;
+      line-height: 1.55;
+      color: #cbd5e1;
+      margin: 6px 0;
+    }
+
+    .remediation-box {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: rgba(34, 197, 94, 0.08);
+      border: 1px solid rgba(34, 197, 94, 0.28);
+      font-size: 0.9rem;
+      color: #bbf7d0;
+      line-height: 1.5;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 36px 20px;
+      color: var(--muted);
+    }
+
+    .ai-prompt-panel {
+      border-color: rgba(56, 189, 248, 0.45);
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(17, 24, 39, 0.96));
+    }
+
+    .ai-prompt-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .ai-prompt-header h3 {
+      margin: 0;
+      font-size: 1.05rem;
+      color: var(--accent);
+    }
+
+    .ai-prompt-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .checkbox-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.88rem;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .finding-actions {
+      margin-top: 10px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .btn-mini {
+      padding: 7px 12px;
+      font-size: 0.82rem;
+      border-radius: 8px;
+    }
+
+    .section-title {
+      font-size: 1.06rem;
+      margin: 0 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .snippet-card {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .snippet-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .history-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+
+    .history-meta {
+      font-size: 0.84rem;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    .compare-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .compare-stat {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .compare-stat .big {
+      font-size: 1.4rem;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .owasp-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 10px;
+    }
+
+    .owasp-pill {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      color: var(--text);
+      cursor: pointer;
+      text-align: left;
+      font-size: 0.84rem;
+      transition: border-color 0.15s ease, transform 0.08s ease;
+    }
+
+    .owasp-pill:hover { transform: translateY(-1px); border-color: var(--accent); }
+    .owasp-pill.pass { border-left: 4px solid var(--success); }
+    .owasp-pill.fail { border-left: 4px solid var(--critical); }
+    .owasp-pill.active-filter { border-color: var(--accent); background: rgba(56, 189, 248, 0.12); }
+
+    .owasp-status {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .owasp-status.pass { background: rgba(34, 197, 94, 0.16); color: #4ade80; }
+    .owasp-status.fail { background: rgba(239, 68, 68, 0.18); color: #fca5a5; }
+
+    .tag.cvss { background: rgba(244, 63, 94, 0.16); color: #fda4af; border-color: rgba(244, 63, 94, 0.35); }
+    .tag.owasp { background: rgba(56, 189, 248, 0.14); color: #7dd3fc; border-color: rgba(56, 189, 248, 0.35); }
+
+    @media print {
+      body { background: #fff; color: #000; }
+      .panel { box-shadow: none; border-color: #ccc; background: #fff; }
+      .tabs, .tab-content, .toolbar, .hint, .ai-prompt-panel, .finding-actions, #history-section, #hardening-section { display: none !important; }
+      #results-section { display: block !important; }
+      .finding-card { break-inside: avoid; background: #fff; color: #000; border-color: #ccc; }
+      .code-box { background: #f8fafc; color: #0f172a; }
+      .detail-block { color: #1e293b; }
+      .remediation-box { background: #f0fdf4; color: #14532d; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <h1>🛡️ Code &amp; Web Vulnerability Auditor</h1>
+        <p>เครื่องมือตรวจสอบจุดอ่อนซอร์สโค้ด ไลบรารี และการตั้งค่าความปลอดภัยของเว็บแอปพลิเคชัน</p>
+      </div>
+      <div class="badges">
+        <span class="badge-pill">OWASP Top 10 + CVSS v3.1 + Apps Script</span>
+        <span class="badge-pill" id="runtime-mode-badge">กำลังตรวจสอบโหมด...</span>
+      </div>
+    </header>
+
+    <div class="panel">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="web-tab">🌐 1. ใส่ลิงก์เว็บไซต์เพื่อตรวจสอบ (Scan Website URL)</button>
+        <button class="tab-btn" data-tab="code-tab">📁 2. สแกนซอร์สโค้ด (Source Code Scanner)</button>
+        <button class="tab-btn" data-tab="snippet-tab">📋 3. วางโค้ด Apps Script / โค้ดทั่วไป (Paste Code)</button>
+      </div>
+
+      <div id="web-tab" class="tab-content active">
+        <div class="input-row">
+          <input type="text" id="web-url-input" class="grow" placeholder="วางลิงก์เว็บไซต์หรือ Google Apps Script เช่น https://script.google.com/macros/s/.../exec หรือ http://127.0.0.1:5050" />
+          <button class="btn btn-primary" id="scan-web-btn" type="button">🌐 ตรวจสอบลิงก์เว็บไซต์</button>
+          <button class="btn btn-demo" id="scan-self-btn" type="button">⚡ ทดสอบสแกนเว็บ Dashboard นี้</button>
+        </div>
+        <div class="hint">
+          ตรวจสอบครบทั้ง Security Headers, HTTPS/HSTS, Cookie Flags, CORS, โครงสร้าง HTML, โค้ด JavaScript หน้าบ้าน, และถอดรหัสหน้าเว็บ Google Apps Script (<code>goog.script.init</code> / <code>google.script.run</code>) อัตโนมัติ
+        </div>
+      </div>
+
+      <div id="code-tab" class="tab-content">
+        <div class="input-row">
+          <input type="text" id="code-path-input" class="grow" placeholder="ระบุ Path (เมื่อรัน Python) หรือกด 'เลือกโฟลเดอร์...' เพื่อเลือกจากเบราว์เซอร์" />
+          <input type="file" id="browser-folder-input" webkitdirectory directory multiple style="display:none;" />
+          <button class="btn btn-secondary" id="browse-btn" type="button">📁 เลือกโฟลเดอร์...</button>
+          <button class="btn btn-primary" id="scan-code-btn" type="button">🔍 เริ่มสแกนโค้ด</button>
+          <button class="btn btn-demo" id="scan-demo-btn" type="button">⚡ ทดลองสแกนโปรเจกต์ตัวอย่าง (Demo)</button>
+        </div>
+        <div class="hint">
+          รองรับไฟล์ <code>.py</code>, <code>.gs</code> (Apps Script), <code>.js</code>, <code>.ts</code>, <code>.jsx</code>, <code>.tsx</code>, <code>.html</code>, <code>.php</code>, <code>.env</code>, <code>appsscript.json</code>, <code>requirements.txt</code>, <code>package.json</code>, <code>Dockerfile</code>
+        </div>
+      </div>
+
+      <div id="snippet-tab" class="tab-content">
+        <div class="input-row">
+          <label for="snippet-filename" style="font-size:0.9rem;color:var(--muted);">ชนิดไฟล์:</label>
+          <select id="snippet-filename">
+            <option value="Code.gs">Code.gs (Google Apps Script)</option>
+            <option value="index.html">index.html (Apps Script HTML / Web)</option>
+            <option value="appsscript.json">appsscript.json (Apps Script Manifest)</option>
+            <option value="app.py">app.py (Python)</option>
+            <option value="script.js">script.js (JavaScript)</option>
+          </select>
+          <button class="btn btn-primary" id="scan-snippet-btn" type="button">🔍 สแกนโค้ดที่วาง</button>
+          <button class="btn btn-demo" id="load-gas-sample-btn" type="button">⚡ โหลดตัวอย่างโค้ด Apps Script</button>
+        </div>
+        <textarea id="snippet-code-input" class="code-editor" placeholder="คัดลอกโค้ดจากหน้าแก้ไข Google Apps Script (Code.gs, index.html, appsscript.json) หรือโค้ดอื่นๆ มาวางที่นี่เพื่อตรวจสอบ..."></textarea>
+        <div class="hint">
+          เหมาะสำหรับโปรเจกต์ Google Apps Script ที่อยู่บน Google Drive / script.google.com โดยไม่ต้องดาวน์โหลดไฟล์ลงเครื่อง
+        </div>
+      </div>
+    </div>
+
+    <div id="status-banner" class="status-banner"></div>
+
+    <div id="results-section">
+      <div class="panel">
+        <div class="summary-grid">
+          <div class="score-card">
+            <div class="grade-circle" id="grade-circle">-</div>
+            <div class="score-num"><span id="score-value">0</span> / 100</div>
+            <div class="score-label" id="scan-meta-label">คะแนนความปลอดภัย</div>
+            <div class="hint" id="max-cvss-label" style="margin-top:6px;">Max CVSS v3.1: 0.0</div>
+          </div>
+          <div class="bars-card" id="severity-bars"></div>
+        </div>
+      </div>
+
+      <div id="owasp-matrix-panel" class="panel" style="display:none;">
+        <div class="section-title">
+          <span>🛡️ OWASP Top 10 (2021) Compliance Matrix (คลิกเพื่อกรอง)</span>
+          <button class="btn btn-secondary btn-mini" id="clear-owasp-filter-btn" type="button" style="display:none;">แสดงทั้งหมด</button>
+        </div>
+        <div id="owasp-grid" class="owasp-grid"></div>
+      </div>
+
+      <div class="toolbar">
+        <div class="filters">
+          <select id="filter-severity">
+            <option value="ALL">ความรุนแรง: ทั้งหมด</option>
+            <option value="CRITICAL">CRITICAL</option>
+            <option value="HIGH">HIGH</option>
+            <option value="MEDIUM">MEDIUM</option>
+            <option value="LOW">LOW</option>
+            <option value="INFO">INFO</option>
+          </select>
+          <select id="filter-category">
+            <option value="ALL">หมวดหมู่: ทั้งหมด</option>
+          </select>
+          <select id="filter-owasp">
+            <option value="ALL">OWASP Top 10: ทั้งหมด</option>
+          </select>
+          <input type="text" id="filter-search" placeholder="ค้นหาชื่อไฟล์, กฎ หรือข้อความ..." style="min-width: 240px;" />
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" id="copy-prompt-btn" type="button">📋 คัดลอก AI Prompt</button>
+          <button class="btn btn-secondary" id="toggle-prompt-btn" type="button">🤖 ซ่อน/แสดง กล่อง AI Prompt</button>
+          <button class="btn btn-secondary" id="export-html-btn" type="button">📄 ดาวน์โหลด HTML Report</button>
+          <button class="btn btn-secondary" id="export-md-btn" type="button">📝 ดาวน์โหลด Markdown (.md)</button>
+          <button class="btn btn-secondary" id="export-json-btn" type="button">⬇️ ดาวน์โหลด JSON</button>
+          <button class="btn btn-secondary" id="print-btn" type="button">🖨️ พิมพ์ / บันทึก PDF</button>
+        </div>
+      </div>
+
+      <div id="ai-prompt-panel" class="panel ai-prompt-panel">
+        <div class="ai-prompt-header">
+          <div>
+            <h3>🤖 AI Prompt พร้อมใช้งาน (คัดลอกไปวางใน ChatGPT / Claude / Gemini)</h3>
+            <div class="hint" style="margin-top:4px;">สรุปจุดอ่อน ตำแหน่ง และแนวทางแก้ไขเป็นคำสั่งพร้อมให้ AI ช่วยเขียนโค้ดปิดช่องโหว่ทันที</div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-primary btn-mini" id="copy-prompt-inner-btn" type="button">📋 คัดลอก Prompt</button>
+            <button class="btn btn-secondary btn-mini" id="download-prompt-btn" type="button">⬇️ ดาวน์โหลด .txt</button>
+          </div>
+        </div>
+        <div class="ai-prompt-controls">
+          <select id="prompt-scope">
+            <option value="filtered">ขอบเขต: รายการที่แสดงตามตัวกรองปัจจุบัน</option>
+            <option value="critical_high">ขอบเขต: เฉพาะระดับ CRITICAL และ HIGH</option>
+          </select>
+          <select id="prompt-style">
+            <option value="full">คำตอบ: ขอโค้ดฉบับแก้ไขสมบูรณ์พร้อมใช้งานทันที</option>
+            <option value="diff">คำตอบ: เปรียบเทียบโค้ดเดิม vs โค้ดใหม่ทีละจุด (Before / After)</option>
+          </select>
+          <label class="checkbox-label" id="prompt-include-source-wrap" style="display:none;">
+            <input type="checkbox" id="prompt-include-source" checked />
+            แนบโค้ดต้นฉบับที่วางไว้ท้าย Prompt
+          </label>
+        </div>
+        <textarea id="ai-prompt-textarea" class="code-editor" style="min-height: 220px;"></textarea>
+      </div>
+
+      <div id="comparison-card" class="panel" style="display:none; border-color: rgba(34, 197, 94, 0.45);"></div>
+
+      <div id="findings-list"></div>
+
+      <div id="hardening-section" class="panel" style="display:none; margin-top: 20px;">
+        <div class="section-title">
+          <span>🛠️ โค้ดป้องกันสำเร็จรูป (Quick Hardening Snippets)</span>
+        </div>
+        <div id="hardening-list"></div>
+      </div>
+    </div>
+
+    <div id="history-section" class="panel" style="margin-top: 22px;">
+      <div class="section-title">
+        <span>📊 ประวัติการสแกน &amp; เปรียบเทียบผลก่อน-หลังแก้ไข (Scan History &amp; Compare)</span>
+        <button class="btn btn-secondary btn-mini" id="refresh-history-btn" type="button">🔄 รีเฟรชประวัติ</button>
+      </div>
+      <div id="history-list" class="history-list">
+        <div class="hint">ยังไม่มีประวัติการสแกน</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* =========================================================================
+       Client-Side Vulnerability Scanner Engine (GitHub Pages / Static Fallback)
+       ========================================================================= */
+    const ClientEngine = (() => {
+      const SEVERITY_ORDER = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"];
+      const SEVERITY_WEIGHTS = { CRITICAL: 18, HIGH: 10, MEDIUM: 4, LOW: 1, INFO: 0 };
+      const SEVERITY_DEFAULT_CVSS = { CRITICAL: 9.4, HIGH: 7.8, MEDIUM: 5.4, LOW: 3.1, INFO: 0.0 };
+      const RULE_CVSS_OVERRIDES = {
+        "INJ-001": 9.8, "INJ-002": 9.8, "INJ-003": 8.8, "INJ-004": 8.8,
+        "INJ-005": 7.5, "INJ-006": 8.2, "CRY-003": 9.1, "GAS-005": 9.3,
+        "SEC-001": 9.1, "SEC-002": 9.1, "DES-001": 8.1, "DES-002": 8.1,
+        "WEB-HTML-003": 7.4,
+      };
+      const OWASP_TOP_10_2021 = [
+        "A01:2021 - Broken Access Control",
+        "A02:2021 - Cryptographic Failures",
+        "A03:2021 - Injection",
+        "A04:2021 - Insecure Design",
+        "A05:2021 - Security Misconfiguration",
+        "A06:2021 - Vulnerable and Outdated Components",
+        "A07:2021 - Identification and Authentication Failures",
+        "A08:2021 - Software and Data Integrity Failures",
+        "A09:2021 - Security Logging and Monitoring Failures",
+        "A10:2021 - Server-Side Request Forgery (SSRF)",
+      ];
+      const CWE_TO_OWASP = {
+        "CWE-22": "A01:2021 - Broken Access Control", "CWE-250": "A01:2021 - Broken Access Control",
+        "CWE-269": "A01:2021 - Broken Access Control", "CWE-284": "A01:2021 - Broken Access Control",
+        "CWE-352": "A01:2021 - Broken Access Control", "CWE-601": "A01:2021 - Broken Access Control",
+        "CWE-639": "A01:2021 - Broken Access Control", "CWE-295": "A02:2021 - Cryptographic Failures",
+        "CWE-312": "A02:2021 - Cryptographic Failures", "CWE-319": "A02:2021 - Cryptographic Failures",
+        "CWE-327": "A02:2021 - Cryptographic Failures", "CWE-338": "A02:2021 - Cryptographic Failures",
+        "CWE-614": "A02:2021 - Cryptographic Failures", "CWE-922": "A02:2021 - Cryptographic Failures",
+        "CWE-78": "A03:2021 - Injection", "CWE-79": "A03:2021 - Injection",
+        "CWE-89": "A03:2021 - Injection", "CWE-94": "A03:2021 - Injection",
+        "CWE-362": "A04:2021 - Insecure Design", "CWE-400": "A04:2021 - Insecure Design",
+        "CWE-665": "A04:2021 - Insecure Design", "CWE-1120": "A04:2021 - Insecure Design",
+        "CWE-16": "A05:2021 - Security Misconfiguration", "CWE-200": "A05:2021 - Security Misconfiguration",
+        "CWE-209": "A05:2021 - Security Misconfiguration", "CWE-489": "A05:2021 - Security Misconfiguration",
+        "CWE-540": "A05:2021 - Security Misconfiguration", "CWE-615": "A05:2021 - Security Misconfiguration",
+        "CWE-693": "A05:2021 - Security Misconfiguration", "CWE-942": "A05:2021 - Security Misconfiguration",
+        "CWE-1021": "A05:2021 - Security Misconfiguration", "CWE-1022": "A05:2021 - Security Misconfiguration",
+        "CWE-1104": "A06:2021 - Vulnerable and Outdated Components",
+        "CWE-347": "A07:2021 - Identification and Authentication Failures",
+        "CWE-798": "A07:2021 - Identification and Authentication Failures",
+        "CWE-353": "A08:2021 - Software and Data Integrity Failures",
+        "CWE-502": "A08:2021 - Software and Data Integrity Failures",
+        "CWE-829": "A08:2021 - Software and Data Integrity Failures",
+        "CWE-391": "A09:2021 - Security Logging and Monitoring Failures",
+        "CWE-918": "A10:2021 - Server-Side Request Forgery (SSRF)",
+      };
+      const IGNORED_DIRS = new Set([".git", ".svn", ".hg", "node_modules", "venv", ".venv", "env", "__pycache__", "dist", "build", ".next"]);
+      const SUPPORTED_EXT = new Set([".py", ".js", ".gs", ".ts", ".jsx", ".tsx", ".html", ".htm", ".php", ".env", ".json", ".yml", ".yaml"]);
+      const HISTORY_KEY = "cwva_scan_history_v1";
+
+      function buildContextSnippet(lines, lineNo, radius = 2) {
+        if (!lines || lineNo < 1 || lineNo > lines.length) return "";
+        const start = Math.max(1, lineNo - radius);
+        const end = Math.min(lines.length, lineNo + radius);
+        const out = [];
+        for (let ln = start; ln <= end; ln++) {
+          const prefix = ln === lineNo ? ">>" : "  ";
+          out.push(`${prefix} ${String(ln).padStart(4, " ")}: ${lines[ln - 1].replace(/\s+$/, "").slice(0, 160)}`);
+        }
+        return out.join("\n");
+      }
+
+      function enrichFinding(raw) {
+        const sev = SEVERITY_ORDER.includes((raw.severity || "").toUpperCase()) ? raw.severity.toUpperCase() : "INFO";
+        let owasp = raw.owasp || "";
+        if (!owasp) {
+          if (raw.cwe && CWE_TO_OWASP[raw.cwe]) owasp = CWE_TO_OWASP[raw.cwe];
+          else if (/Injection|XSS|Code Execution/.test(raw.category || "")) owasp = "A03:2021 - Injection";
+          else if (/Crypt|Transport/.test(raw.category || "")) owasp = "A02:2021 - Cryptographic Failures";
+          else if (/Access|CSRF/.test(raw.category || "")) owasp = "A01:2021 - Broken Access Control";
+          else if (/Dependenc/.test(raw.category || "")) owasp = "A06:2021 - Vulnerable and Outdated Components";
+          else owasp = "A05:2021 - Security Misconfiguration";
+        }
+        const cvss = raw.cvss_score || RULE_CVSS_OVERRIDES[raw.rule_id] || SEVERITY_DEFAULT_CVSS[sev] || 0.0;
+        return {
+          ...raw,
+          severity: sev,
+          owasp,
+          cvss_score: Number(cvss.toFixed(1)),
+          confidence: raw.confidence || "HIGH",
+          context_snippet: raw.context_snippet || raw.code_snippet || "",
+        };
+      }
+
+      function calculateSummary(findings) {
+        const severity_counts = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0 };
+        const category_counts = {};
+        const owasp_counts = {};
+        OWASP_TOP_10_2021.forEach((c) => { owasp_counts[c] = 0; });
+        let penalty = 0;
+        let max_cvss = 0.0;
+        findings.forEach((f) => {
+          const sev = severity_counts[f.severity] !== undefined ? f.severity : "INFO";
+          severity_counts[sev] += 1;
+          category_counts[f.category] = (category_counts[f.category] || 0) + 1;
+          if (f.owasp) owasp_counts[f.owasp] = (owasp_counts[f.owasp] || 0) + 1;
+          if ((f.cvss_score || 0) > max_cvss) max_cvss = f.cvss_score;
+          penalty += SEVERITY_WEIGHTS[sev] || 0;
+        });
+        const score = Math.max(0, Math.min(100, 100 - penalty));
+        let grade = "F";
+        if (score >= 90 && severity_counts.CRITICAL === 0) grade = "A";
+        else if (score >= 75 && severity_counts.CRITICAL === 0) grade = "B";
+        else if (score >= 60) grade = "C";
+        else if (score >= 40) grade = "D";
+
+        const owasp_matrix = OWASP_TOP_10_2021.map((cat) => {
+          const count = owasp_counts[cat] || 0;
+          return { category: cat, code: cat.split(":")[0], count, status: count > 0 ? "FAIL" : "PASS" };
+        });
+        return { score, grade, total_findings: findings.length, max_cvss: Number(max_cvss.toFixed(1)), severity_counts, category_counts, owasp_counts, owasp_matrix };
+      }
+
+      function notPlaceholderSecret(line) {
+        const low = line.toLowerCase();
+        return !["changeme", "your_", "your-", "example", "placeholder", "<your", "os.environ", "os.getenv", "process.env", "getenv("].some((p) => low.includes(p));
+      }
+
+      function hasCsrfInForm(lines, lineIdx) {
+        const win = lines.slice(lineIdx, Math.min(lines.length, lineIdx + 15)).join("\n").toLowerCase();
+        return ["csrf_token", "csrfmiddlewaretoken", "_csrf", "csrftoken", "xsrf"].some((m) => win.includes(m));
+      }
+
+      function isCommentLine(line, ext) {
+        const s = line.trim();
+        if (!s) return true;
+        if ([".py", ".env", ".yml", ".yaml"].includes(ext) && s.startsWith("#")) return true;
+        if ([".js", ".gs", ".ts", ".jsx", ".tsx", ".php"].includes(ext) && (s.startsWith("//") || s.startsWith("/*") || s.startsWith("*"))) return true;
+        if ([".html", ".htm"].includes(ext) && s.startsWith("<!--")) return true;
+        return false;
+      }
+
+      const REGEX_RULES = [
+        {
+          rule_id: "SEC-001", severity: "CRITICAL", category: "Hardcoded Secrets", cwe: "CWE-798", extensions: null,
+          title: "พบการฝังรหัสผ่านหรือ Secret Key ในซอร์สโค้ด",
+          pattern: /\b(?:password|passwd|pwd|secret_key|app_secret|jwt_secret|db_password|private_key)\b\s*[:=]\s*['"][^'"]{4,}['"]/i,
+          description: "การฝังรหัสผ่านหรือ Secret Key ลงในซอร์สโค้ดโดยตรง ทำให้ผู้ที่เข้าถึงโค้ดสามารถขโมยข้อมูลลับไปใช้งานได้ทันที",
+          remediation: "ย้ายข้อมูลลับไปเก็บใน Environment Variable หรือ PropertiesService แทนการเขียนลงในโค้ดตรงๆ",
+          validator: notPlaceholderSecret,
+        },
+        {
+          rule_id: "SEC-002", severity: "CRITICAL", category: "Hardcoded Secrets", cwe: "CWE-798", extensions: null,
+          title: "พบ API Key หรือ Access Token ฝังอยู่ในโค้ด",
+          pattern: /(?:\b(?:api_key|apikey|access_token|auth_token|bearer_token|client_secret)\b\s*[:=]\s*['"][A-Za-z0-9_\-./+=]{8,}['"]|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{30,}|sk-[A-Za-z0-9]{20,})/i,
+          description: "ตรวจพบ API Key หรือ Token ที่ถูกเขียนตายตัวในโค้ด หากหลุดออกไปผู้ไม่หวังดีสามารถนำไปสวมสิทธิ์ได้",
+          remediation: "เก็บคีย์ไว้ใน Environment Variable / Secret Manager / PropertiesService และ Revoke คีย์เดิมหากเคยเผยแพร่แล้ว",
+          validator: notPlaceholderSecret,
+        },
+        {
+          rule_id: "SEC-003", severity: "HIGH", category: "Hardcoded Secrets", cwe: "CWE-798", extensions: null,
+          title: "พบ Connection String ที่มีรหัสผ่านฝังอยู่",
+          pattern: /(?:postgres|postgresql|mysql|mongodb|redis|mssql)(?:\+\w+)?:\/\/[^:\s'"]+:[^@\s'"]{3,}@/i,
+          description: "พบ URL เชื่อมต่อฐานข้อมูลที่มีชื่อผู้ใช้และรหัสผ่านฝังอยู่ในสตริงโดยตรง",
+          remediation: "ดึง Connection String ทั้งก้อนจาก Environment Variable",
+        },
+        {
+          rule_id: "INJ-001", severity: "CRITICAL", category: "Injection", cwe: "CWE-89", extensions: [".py", ".js", ".gs", ".ts", ".jsx", ".tsx", ".php"],
+          title: "ความเสี่ยง SQL Injection จากการต่อสตริงคำสั่ง SQL",
+          pattern: /(?:f"[^"]*\b(?:SELECT|INSERT|UPDATE|DELETE)\b[^"]*\{[^}]+\}|f'[^']*\b(?:SELECT|INSERT|UPDATE|DELETE)\b[^']*\{[^}]+\}|(?:SELECT|INSERT|UPDATE|DELETE)\b[^;\n]*(?:%s|%d|\{\s*\}|\.format\s*\(|\+\s*[a-zA-Z_][\w.]*|\$\{[^}]+\}))/i,
+          description: "มีการนำตัวแปรมาต่อเข้ากับคำสั่ง SQL โดยตรง เสี่ยงต่อการแทรกคำสั่ง SQL เพื่ออ่านหรือแก้ไขฐานข้อมูล",
+          remediation: "ใช้ Parameterized Query / Prepared Statement เสมอ",
+        },
+        {
+          rule_id: "INJ-002", severity: "CRITICAL", category: "Code Execution", cwe: "CWE-94", extensions: [".py", ".js", ".gs", ".ts", ".jsx", ".tsx", ".php"],
+          title: "การใช้ eval() หรือ exec() ซึ่งเสี่ยงต่อการรันโค้ดอันตราย",
+          pattern: /\b(?:eval|exec|new\s+Function)\s*\(/,
+          description: "ฟังก์ชัน eval() หรือ exec() ประมวลผลสตริงเป็นโค้ดทันที เสี่ยงต่อ Remote Code Execution",
+          remediation: "หลีกเลี่ยง eval/exec และใช้ JSON.parse() หรือ json.loads() แทน",
+        },
+        {
+          rule_id: "INJ-003", severity: "HIGH", category: "Command Injection", cwe: "CWE-78", extensions: [".py", ".php"],
+          title: "การใช้ os.system() หรือ shell_exec() รันคำสั่งระบบปฏิบัติการ",
+          pattern: /\b(?:os\.system|os\.popen|shell_exec|passthru)\s*\(/,
+          description: "การเรียกคำสั่ง OS ผ่าน shell โดยตรงเสี่ยงต่อ Command Injection",
+          remediation: "ใช้ subprocess.run(['cmd', arg], shell=False) แทน",
+        },
+        {
+          rule_id: "INJ-004", severity: "HIGH", category: "Command Injection", cwe: "CWE-78", extensions: [".py", ".js", ".ts"],
+          title: "การเรียก subprocess/child_process ด้วย shell=True",
+          pattern: /(?:subprocess\.(?:run|Popen|call|check_output|check_call)\s*\([^\n]*shell\s*=\s*True|child_process\.exec\s*\()/,
+          description: "การเปิด shell=True ทำให้คำสั่งถูกตีความผ่าน Shell จึงเสี่ยงต่อ Command Injection",
+          remediation: "ตั้งค่า shell=False และส่งคำสั่งเป็นอาร์เรย์ของอาร์กิวเมนต์",
+        },
+        {
+          rule_id: "INJ-005", severity: "HIGH", category: "Path Traversal", cwe: "CWE-22", extensions: [".py", ".js", ".ts"],
+          title: "ความเสี่ยง Path Traversal จากการเปิด/ส่งไฟล์ด้วยค่าจาก Request โดยตรง",
+          pattern: /\b(?:open|send_file|send_from_directory|fs\.readFile|fs\.readFileSync)\s*\([^\n]*(?:request\.(?:args|form|values|json)|req\.(?:query|params|body))/,
+          description: "การนำชื่อไฟล์จากผู้ใช้มาเปิดหรือส่งไฟล์โดยไม่ตรวจสอบ อาจถูกใช้ `../` อ่านไฟล์ระบบ",
+          remediation: "ใช้ secure_filename() และตรวจสอบ os.path.realpath() ให้อยู่ในโฟลเดอร์ที่อนุญาต",
+        },
+        {
+          rule_id: "INJ-006", severity: "HIGH", category: "SSRF", cwe: "CWE-918", extensions: [".py", ".js", ".gs", ".ts"],
+          title: "ความเสี่ยง Server-Side Request Forgery (SSRF) จากการดึง URL ที่รับจากผู้ใช้",
+          pattern: /\b(?:requests\.(?:get|post|put|delete|head)|urllib\.request\.urlopen|fetch|axios\.(?:get|post)|UrlFetchApp\.fetch)\s*\([^\n]*(?:request\.(?:args|form|values|json)|req\.(?:query|params|body)|e\.parameter)/,
+          description: "การนำ URL จากผู้ใช้ไปสั่งให้เซิร์ฟเวอร์เรียก HTTP Request โดยไม่ตรวจโดเมน เสี่ยงต่อ SSRF",
+          remediation: "ตรวจสอบ Scheme https:// และเช็ก Hostname กับ Allowlist ก่อนเรียก Request",
+        },
+        {
+          rule_id: "DES-001", severity: "HIGH", category: "Deserialization", cwe: "CWE-502", extensions: [".py"],
+          title: "การใช้ pickle โหลดข้อมูลที่ไม่น่าเชื่อถือ",
+          pattern: /\b(?:pickle|cPickle)\.loads?\s*\(/,
+          description: "โมดูล pickle สามารถรันโค้ดอันตรายระหว่าง Deserialize ข้อมูลที่ไม่น่าเชื่อถือได้",
+          remediation: "เปลี่ยนมาใช้ json.loads() แทน",
+        },
+        {
+          rule_id: "DES-002", severity: "HIGH", category: "Deserialization", cwe: "CWE-502", extensions: [".py"],
+          title: "การใช้ yaml.load() โดยไม่ระบุ SafeLoader",
+          pattern: /\byaml\.load\s*\(/,
+          description: "yaml.load() โดยไม่มี SafeLoader อาจเปิดช่องให้รันโค้ดอันตรายได้",
+          remediation: "ใช้ yaml.safe_load() หรือระบุ Loader=yaml.SafeLoader",
+          validator: (line) => !/safeloader/i.test(line),
+        },
+        {
+          rule_id: "CRY-001", severity: "MEDIUM", category: "Cryptography", cwe: "CWE-327", extensions: [".py", ".js", ".ts"],
+          title: "การใช้อัลกอริทึมแฮชที่อ่อนแอ (MD5 / SHA-1)",
+          pattern: /(?:hashlib\.(?:md5|sha1)\s*\(|crypto\.createHash\s*\(\s*['"](?:md5|sha1)['"])/i,
+          description: "MD5 และ SHA-1 ไม่ปลอดภัยสำหรับการแฮชรหัสผ่านหรือการตรวจสอบความถูกต้องเชิงความปลอดภัย",
+          remediation: "ใช้ SHA-256 สำหรับแฮชทั่วไป และใช้ bcrypt/argon2 สำหรับรหัสผ่าน",
+        },
+        {
+          rule_id: "CRY-002", severity: "MEDIUM", category: "Cryptography", cwe: "CWE-338", extensions: [".py"],
+          title: "การใช้ random ทั่วไปสร้างค่าที่เกี่ยวข้องกับความปลอดภัย",
+          pattern: /(?:token|secret|password|otp|pin|key|salt)[^\n=]*=\s*[^\n]*\brandom\.(?:choice|randint|randrange|random)\s*\(/i,
+          description: "โมดูล random คาดเดาได้ ไม่ปลอดภัยสำหรับสร้าง Token, รหัสผ่าน, หรือ OTP",
+          remediation: "ใช้โมดูล secrets แทน เช่น secrets.token_urlsafe(32)",
+        },
+        {
+          rule_id: "CRY-003", severity: "CRITICAL", category: "Authentication / JWT", cwe: "CWE-347", extensions: [".py", ".js", ".ts"],
+          title: "การปิดตรวจสอบลายเซ็น JWT หรืออนุญาตอัลกอริทึม 'none'",
+          pattern: /(?:verify_signature['"]?\s*:\s*False|verify\s*=\s*False[^\n]*jwt|algorithms\s*=\s*\[[^\]]*['"]none['"])/i,
+          description: "การปิดตรวจสอบลายเซ็น JWT ทำให้ผู้โจมตีปลอมแปลง Token เป็นผู้ใช้คนใดก็ได้",
+          remediation: "เปิด verify_signature: True และกำหนดอัลกอริทึมที่ปลอดภัย เช่น HS256 / RS256",
+        },
+        {
+          rule_id: "WEB-001", severity: "HIGH", category: "Misconfiguration", cwe: "CWE-489", extensions: [".py"],
+          title: "เปิดโหมด Debug (debug=True / DEBUG = True) ในโค้ด",
+          pattern: /(?:\.run\s*\([^\n]*\bdebug\s*=\s*True\b|^\s*DEBUG\s*=\s*True\b)/,
+          description: "การเปิดโหมด Debug บนระบบจริงอาจเปิดเผย Stack Trace และช่องทางรันโค้ด",
+          remediation: "ปิด debug=False บน Production หรือควบคุมผ่าน Environment Variable",
+        },
+        {
+          rule_id: "WEB-002", severity: "HIGH", category: "Network Security", cwe: "CWE-295", extensions: [".py", ".js", ".ts", ".env"],
+          title: "ปิดการตรวจสอบใบรับรอง SSL/TLS (verify=False)",
+          pattern: /(?:verify\s*=\s*False|rejectUnauthorized\s*:\s*false|NODE_TLS_REJECT_UNAUTHORIZED\s*=\s*['"]0['"])/,
+          description: "การปิดตรวจใบรับรอง SSL/TLS ทำให้เสี่ยงต่อการดักฟังข้อมูลแบบ Man-in-the-Middle",
+          remediation: "เปิดการตรวจสอบ SSL/TLS Certificate ไว้เสมอ",
+        },
+        {
+          rule_id: "WEB-003", severity: "MEDIUM", category: "Misconfiguration", cwe: "CWE-942", extensions: [".py", ".js", ".gs", ".ts", ".php"],
+          title: "ตั้งค่า CORS อนุญาตทุกโดเมน (Access-Control-Allow-Origin: *)",
+          pattern: /(?:Access-Control-Allow-Origin['"]?\s*[:=]\s*['"]\*['"]|CORS\s*\([^)]*origins\s*=\s*['"]\*['"]|cors\s*\(\s*\))/,
+          description: "การเปิด CORS ให้ * อาจทำให้เว็บอื่นดึงข้อมูลจาก API ผ่านเบราว์เซอร์ของผู้ใช้ได้",
+          remediation: "ระบุเฉพาะ Origin ที่ไว้วางใจใน Allowlist แทนการใช้ *",
+        },
+        {
+          rule_id: "WEB-004", severity: "MEDIUM", category: "Open Redirect", cwe: "CWE-601", extensions: [".py", ".js", ".gs", ".ts"],
+          title: "ความเสี่ยง Open Redirect จากการเปลี่ยนเส้นทางด้วยค่าจากผู้ใช้โดยตรง",
+          pattern: /\b(?:redirect|res\.redirect|window\.location(?:\.href)?\s*=)\s*\(?[^\n]*(?:request\.(?:args|form|values)|req\.(?:query|params|body)|location\.search|URLSearchParams)/,
+          description: "การ Redirect ไปยัง URL ที่รับจากผู้ใช้โดยไม่ตรวจสอบอาจถูกใช้หลอกไปเว็บฟิชชิ่ง",
+          remediation: "ตรวจสอบให้ปลายทางเป็น Relative Path ภายในเว็บหรืออยู่ใน Allowlist",
+        },
+        {
+          rule_id: "WEB-005", severity: "MEDIUM", category: "Client Storage", cwe: "CWE-922", extensions: [".js", ".ts", ".jsx", ".tsx", ".html", ".htm"],
+          title: "จัดเก็บข้อมูลสำคัญ (Token/Secret/Password) ใน localStorage หรือ sessionStorage",
+          pattern: /\b(?:localStorage|sessionStorage)\.setItem\s*\(\s*['"][^'"]*(?:token|jwt|auth|secret|password|api_?key)[^'"]*['"]/i,
+          description: "ข้อมูลใน Web Storage ถูก JavaScript อ่านได้ทั้งหมด เสี่ยงถูกขโมยหากมีช่องโหว่ XSS",
+          remediation: "เก็บ Session Token ใน Cookie ที่มี Flag HttpOnly; Secure; SameSite แทน",
+        },
+        {
+          rule_id: "XSS-001", severity: "HIGH", category: "XSS", cwe: "CWE-79", extensions: [".js", ".gs", ".ts", ".jsx", ".tsx", ".html", ".htm"],
+          title: "การแทรก HTML โดยตรงเข้า DOM (innerHTML / document.write / dangerouslySetInnerHTML)",
+          pattern: /(?:\.innerHTML\s*=|\.outerHTML\s*=|\bdocument\.write\s*\(|\bdangerouslySetInnerHTML\b)/,
+          description: "การใส่ข้อมูลลง innerHTML / document.write โดยไม่ Sanitize เสี่ยงต่อ Cross-Site Scripting (XSS)",
+          remediation: "ใช้ .textContent แทน innerHTML หรือใช้ DOMPurify กรองก่อนแสดงผล",
+        },
+        {
+          rule_id: "XSS-002", severity: "MEDIUM", category: "XSS", cwe: "CWE-79", extensions: [".py", ".html", ".htm"],
+          title: "การปิดระบบ Auto-escape ในเทมเพลต (|safe / Markup)",
+          pattern: /(?:\|\s*safe\b|\bMarkup\s*\()/,
+          description: "การใช้ |safe หรือ Markup() ปิดการ Escape HTML อัตโนมัติ อาจเกิด XSS ได้",
+          remediation: "หลีกเลี่ยง |safe กับข้อมูลจากผู้ใช้หรือทำความสะอาด HTML ก่อนเสมอ",
+        },
+        {
+          rule_id: "XSS-003", severity: "MEDIUM", category: "CSRF", cwe: "CWE-352", extensions: [".html", ".htm", ".php"],
+          title: "แบบฟอร์ม POST HTML ที่อาจไม่มี CSRF Token ป้องกัน",
+          pattern: /<form\b[^>]*method\s*=\s*['"]?post['"]?[^>]*>/i,
+          description: "ฟอร์ม POST ที่ไม่พบฟิลด์ CSRF Token อาจเสี่ยงต่อการโจมตีแบบ CSRF",
+          remediation: "เพิ่ม Hidden Input สำหรับ CSRF Token ในฟอร์ม",
+        },
+        {
+          rule_id: "GAS-001", severity: "HIGH", category: "XSS (Apps Script)", cwe: "CWE-79", extensions: [".html", ".htm"],
+          title: "การใช้ Force-printing Scriptlet (<?!= ... ?>) ใน Google Apps Script HTML",
+          pattern: /<\?!=/,
+          description: "แท็ก <?!= ... ?> ไม่ทำการ Escape HTML อัตโนมัติ เสี่ยงต่อ XSS",
+          remediation: "เปลี่ยนมาใช้ <?= ... ?> ซึ่ง Escape อัตโนมัติ",
+        },
+        {
+          rule_id: "GAS-002", severity: "MEDIUM", category: "Misconfiguration (Apps Script)", cwe: "CWE-1021", extensions: [".gs", ".js"],
+          title: "ตั้งค่า XFrameOptionsMode.ALLOWALL เปิดให้ฝัง Web App ใน iframe จากทุกเว็บ",
+          pattern: /XFrameOptionsMode\.ALLOWALL/,
+          description: "การเปิด ALLOWALL ทำให้เว็บอื่นนำหน้าเว็บ Apps Script ไปฝังใน iframe เพื่อทำ Clickjacking ได้",
+          remediation: "ใช้ HtmlService.XFrameOptionsMode.DEFAULT หากไม่จำเป็นต้องฝังข้ามโดเมน",
+        },
+        {
+          rule_id: "GAS-003", severity: "HIGH", category: "Network Security (Apps Script)", cwe: "CWE-295", extensions: [".gs", ".js"],
+          title: "ปิดการตรวจสอบใบรับรอง SSL ใน UrlFetchApp.fetch (validateHttpsCertificates: false)",
+          pattern: /validateHttpsCertificates\s*:\s*false/,
+          description: "การปิด validateHttpsCertificates ทำให้ไม่ตรวจสอบ SSL Certificate เสี่ยงต่อการดักฟัง",
+          remediation: "ลบ validateHttpsCertificates: false ออกหรือตั้งเป็น true",
+        },
+        {
+          rule_id: "GAS-004", severity: "MEDIUM", category: "Secrets / Storage (Apps Script)", cwe: "CWE-312", extensions: [".gs", ".js"],
+          title: "ฝัง Resource ID หรือ Webhook URL ตายตัวในโค้ด Apps Script",
+          pattern: /(?:\b(?:SPREADSHEET_ID|SHEET_ID|FOLDER_ID|DOC_ID|WEBHOOK_URL)\b\s*[:=]\s*['"][A-Za-z0-9_\-/:.]{15,}['"]|\bSpreadsheetApp\.openById\s*\(\s*['"][A-Za-z0-9_\-]{20,}['"]\s*\))/i,
+          description: "การฝัง Spreadsheet/Folder ID หรือ Webhook URL ตายตัวในโค้ด .gs เสี่ยงต่อการเปิดเผยทรัพยากร",
+          remediation: "ย้ายค่ากำหนดไปเก็บใน PropertiesService.getScriptProperties().getProperty('KEY')",
+          validator: notPlaceholderSecret,
+        },
+      ];
+
+      function scanManifestContent(content, relPath = "appsscript.json") {
+        const out = [];
+        try {
+          const data = JSON.parse(content);
+          if (!data || typeof data !== "object") return out;
+          if (data.webapp && typeof data.webapp === "object") {
+            const executeAs = String(data.webapp.executeAs || "").toUpperCase();
+            const access = String(data.webapp.access || "").toUpperCase();
+            if (executeAs === "USER_DEPLOYING" && ["ANYONE_ANONYMOUS", "ANYONE"].includes(access)) {
+              out.push(enrichFinding({
+                rule_id: "GAS-005", severity: "CRITICAL", category: "Access Control (Apps Script)", cwe: "CWE-269",
+                title: `ตั้งค่า Web App รันด้วยสิทธิ์เจ้าของ (USER_DEPLOYING) แต่เปิดให้เข้าถึงแบบ ${access}`,
+                file_path: relPath, line_number: 1,
+                code_snippet: `"executeAs": "${executeAs}", "access": "${access}"`,
+                description: "ผู้ใช้งานทั่วไปบนอินเทอร์เน็ตสามารถสั่งให้สคริปต์ทำงานในนามบัญชีเจ้าของได้โดยตรง",
+                remediation: "เปลี่ยน access เป็น MYSELF หรือ DOMAIN หรือเปลี่ยน executeAs เป็น USER_ACCESSING พร้อมตรวจสิทธิ์ใน doGet/doPost",
+              }));
+            }
+          }
+          const broadScopes = new Set([
+            "https://mail.google.com/",
+            "https://www.googleapis.com/auth/drive",
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/gmail.modify",
+            "https://www.googleapis.com/auth/script.external_request",
+          ]);
+          if (Array.isArray(data.oauthScopes)) {
+            const found = data.oauthScopes.map(String).filter((s) => broadScopes.has(s));
+            if (found.length > 0) {
+              out.push(enrichFinding({
+                rule_id: "GAS-006", severity: "MEDIUM", category: "Privilege / OAuth Scope (Apps Script)", cwe: "CWE-250",
+                title: `ขอสิทธิ์ OAuth Scope กว้างเกินความจำเป็น (${found.length} รายการ)`,
+                file_path: relPath, line_number: 1,
+                code_snippet: found.join(", "),
+                description: "การขอ Scope ระดับเต็มเพิ่มความเสี่ยงหากสคริปต์ถูกโจมตี",
+                remediation: "จำกัด Scope ตามหลัก Least Privilege เช่น ใช้ drive.file หรือ spreadsheets.currentonly",
+              }));
+            }
+          }
+        } catch (_err) {}
+        return out;
+      }
+
+      function scanContent(content, relPath, extLower) {
+        const lines = content.split(/\r?\n/);
+        const out = [];
+        lines.forEach((line, idx) => {
+          if (isCommentLine(line, extLower)) return;
+          for (const rule of REGEX_RULES) {
+            if (rule.extensions && !rule.extensions.includes(extLower)) continue;
+            if (rule.rule_id === "XSS-003" && hasCsrfInForm(lines, idx)) continue;
+            if (rule.validator && !rule.validator(line)) continue;
+            if (rule.pattern.test(line)) {
+              out.push(enrichFinding({
+                rule_id: rule.rule_id, severity: rule.severity, category: rule.category,
+                title: rule.title, file_path: relPath, line_number: idx + 1,
+                code_snippet: line.trim().slice(0, 180),
+                context_snippet: buildContextSnippet(lines, idx + 1),
+                description: rule.description, remediation: rule.remediation, cwe: rule.cwe,
+              }));
+            }
+          }
+        });
+
+        // Python quick quality checks (QA-001, QA-002)
+        if (extLower === ".py") {
+          lines.forEach((line, idx) => {
+            if (/^\s*except\s*:/.test(line) || (/^\s*except\b/.test(line) && lines[idx + 1] && /^\s*pass\s*(?:#.*)?$/.test(lines[idx + 1]))) {
+              out.push(enrichFinding({
+                rule_id: "QA-001", severity: "LOW", category: "Code Quality", cwe: "CWE-391",
+                title: "จับ Exception แบบกว้างเกินไปหรือกลืน Error เงียบๆ (bare except / except: pass)",
+                file_path: relPath, line_number: idx + 1, code_snippet: line.trim().slice(0, 180),
+                context_snippet: buildContextSnippet(lines, idx + 1),
+                description: "การใช้ except: หรือ except ...: pass ซ่อนข้อผิดพลาดที่สำคัญและอาจกลืน KeyboardInterrupt",
+                remediation: "ระบุชนิด Exception อย่างเจาะจงและจัดการข้อผิดพลาดหรือบันทึก Log",
+              }));
+            }
+            if (/^\s*(?:async\s+)?def\s+\w+\([^)]*=\s*(?:\[\]|\{\})/.test(line)) {
+              out.push(enrichFinding({
+                rule_id: "QA-002", severity: "LOW", category: "Code Quality", cwe: "CWE-665",
+                title: "พบ Mutable Default Argument ในฟังก์ชัน Python",
+                file_path: relPath, line_number: idx + 1, code_snippet: line.trim().slice(0, 180),
+                context_snippet: buildContextSnippet(lines, idx + 1),
+                description: "ค่าเริ่มต้นที่เป็น [] หรือ {} จะถูกใช้ร่วมกันข้ามการเรียกฟังก์ชัน",
+                remediation: "ใช้ None เป็นค่าเริ่มต้นแล้วสร้างออบเจกต์ใหม่ภายในฟังก์ชัน",
+              }));
+            }
+          });
+        }
+
+        // GAS-007: Sheets mutation without LockService
+        if (extLower === ".gs" && !content.includes("LockService")) {
+          for (let idx = 0; idx < lines.length; idx++) {
+            if (isCommentLine(lines[idx], extLower)) continue;
+            if (/\.\s*(?:appendRow|deleteRow|deleteRows|setValues|setValue)\s*\(/.test(lines[idx])) {
+              out.push(enrichFinding({
+                rule_id: "GAS-007", severity: "MEDIUM", category: "Concurrency (Apps Script)", cwe: "CWE-362",
+                title: "แก้ไข Google Sheets โดยไม่ใช้ LockService (เสี่ยง Race Condition)",
+                file_path: relPath, line_number: idx + 1, code_snippet: lines[idx].trim().slice(0, 180),
+                context_snippet: buildContextSnippet(lines, idx + 1), confidence: "MEDIUM",
+                description: "เมื่อมีผู้ใช้เรียก Web App พร้อมกันหลายคน การเขียนข้อมูลโดยไม่ล็อกอาจทำให้ข้อมูลทับกัน",
+                remediation: "ครอบคำสั่งด้วย LockService.getScriptLock() และ releaseLock() ใน finally",
+              }));
+              break;
+            }
+          }
+        }
+        return out;
+      }
+
+      function scanDependencyFile(content, fname, relPath) {
+        const lower = fname.toLowerCase();
+        const out = [];
+        if (lower === "appsscript.json") return scanManifestContent(content, relPath);
+        if (lower === "requirements.txt") {
+          content.split(/\r?\n/).forEach((raw, i) => {
+            const line = raw.trim();
+            if (!line || line.startsWith("#") || line.startsWith("-")) return;
+            if (!line.includes("==")) {
+              out.push(enrichFinding({
+                rule_id: "DEP-001", severity: "LOW", category: "Dependencies", cwe: "CWE-1104",
+                title: `ไลบรารี \`${line}\` ไม่ได้ล็อกเวอร์ชันตายตัว (Unpinned Dependency)`,
+                file_path: relPath, line_number: i + 1, code_snippet: line,
+                description: "การไม่ล็อกเวอร์ชันด้วย == อาจทำให้ได้เวอร์ชันที่มีการเปลี่ยนแปลงหรือช่องโหว่ใหม่โดยไม่รู้ตัว",
+                remediation: `ระบุเวอร์ชันให้ชัดเจน เช่น ${line.split(/[><]/)[0].trim()}==<version>`,
+              }));
+            }
+          });
+        } else if (lower === "package.json") {
+          try {
+            const pkg = JSON.parse(content);
+            ["dependencies", "devDependencies"].forEach((sec) => {
+              const deps = pkg && pkg[sec];
+              if (!deps || typeof deps !== "object") return;
+              Object.entries(deps).forEach(([name, ver]) => {
+                const v = String(ver).trim();
+                if (v === "*" || v === "latest" || v.startsWith("http://")) {
+                  out.push(enrichFinding({
+                    rule_id: "DEP-002", severity: "MEDIUM", category: "Dependencies", cwe: "CWE-829",
+                    title: `แพ็กเกจ \`${name}\` ใช้เวอร์ชันที่ไม่ปลอดภัย (\`${v}\`)`,
+                    file_path: relPath, line_number: 1, code_snippet: `"${name}": "${v}"`,
+                    description: "การใช้ *, latest หรือ http:// เสี่ยงต่อ Supply Chain Attack",
+                    remediation: "ระบุเวอร์ชันที่ชัดเจนและใช้ package-lock.json",
+                  }));
+                }
+              });
+            });
+          } catch (_e) {}
+        } else if (lower === "dockerfile") {
+          const lines = content.split(/\r?\n/);
+          let hasUser = false;
+          lines.forEach((raw, i) => {
+            const l = raw.trim();
+            if (/^FROM\s+/i.test(l)) {
+              const img = (l.split(/\s+/)[1] || "").toLowerCase();
+              if (img.includes(":latest") || !img.includes(":")) {
+                out.push(enrichFinding({
+                  rule_id: "DEP-003", severity: "LOW", category: "Container Security", cwe: "CWE-1104",
+                  title: "Dockerfile ใช้ Base Image แท็ก :latest หรือไม่ระบุแท็ก",
+                  file_path: relPath, line_number: i + 1, code_snippet: l,
+                  description: "ทำให้ Image ที่ build ไม่คงที่และอาจดึงเวอร์ชันที่เปลี่ยนพฤติกรรมมา",
+                  remediation: "ระบุแท็กเวอร์ชันของ Base Image ให้ชัดเจน",
+                }));
+              }
+            }
+            if (/^\s*USER\s+(?!root\b)\S+/i.test(l)) hasUser = true;
+          });
+          if (lines.length > 0 && !hasUser) {
+            out.push(enrichFinding({
+              rule_id: "DEP-004", severity: "MEDIUM", category: "Container Security", cwe: "CWE-250",
+              title: "Dockerfile ไม่ได้กำหนด USER (Container จะรันด้วยสิทธิ์ root)",
+              file_path: relPath, line_number: 1, code_snippet: lines[0].trim().slice(0, 120),
+              description: "หากเกิดช่องโหว่ภายใน Container ผู้โจมตีจะมีสิทธิ์ root ทันที",
+              remediation: "สร้าง user ทั่วไปและกำหนด USER appuser ก่อน CMD",
+            }));
+          }
+        }
+        return out;
+      }
+
+      function dedupeAndSort(rawList) {
+        const seen = new Set();
+        const unique = [];
+        for (const f of rawList) {
+          const key = `${f.rule_id}|${f.file_path}|${f.line_number}|${f.code_snippet}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            unique.push(f);
+          }
+        }
+        const rank = Object.fromEntries(SEVERITY_ORDER.map((s, i) => [s, i]));
+        unique.sort((a, b) => (rank[a.severity] ?? 99) - (rank[b.severity] ?? 99) || String(a.file_path).localeCompare(String(b.file_path)) || a.line_number - b.line_number);
+        return unique;
+      }
+
+      function generateAiFixPrompt(report) {
+        const meta = report.meta || {};
+        const summary = report.summary || {};
+        const findings = report.findings || [];
+        let targetLabel = `โปรเจกต์/ไฟล์: ${meta.target || "-"}`;
+        if (meta.mode === "web") targetLabel = `เว็บไซต์ URL: ${meta.url || "-"}${meta.is_apps_script ? " (Google Apps Script Web App)" : ""}`;
+        else if (meta.mode === "snippet") targetLabel = `โค้ดไฟล์: ${meta.filename || "Code.gs"}`;
+
+        const sc = summary.severity_counts || {};
+        const sevText = SEVERITY_ORDER.map((k) => `${k}: ${sc[k] || 0}`).join(", ");
+        const lines = [
+          "คุณคือผู้เชี่ยวชาญด้าน Application Security (AppSec) และนักพัฒนาซอฟต์แวร์อาวุโส",
+          "โปรดช่วยตรวจสอบและแก้ไขจุดอ่อนด้านความปลอดภัยและคุณภาพโค้ดจากผลการสแกนด้านล่างนี้ให้ถูกต้อง ปลอดภัย และพร้อมใช้งานจริง (Production-Ready)",
+          "", "## ข้อมูลเป้าหมายที่ตรวจสอบ",
+          `- ${targetLabel}`,
+          `- คะแนนความปลอดภัยปัจจุบัน: ${summary.score ?? 0}/100 (เกรด ${summary.grade ?? "-"}) | Max CVSS v3.1: ${summary.max_cvss ?? 0.0}`,
+          `- สรุปจำนวนจุดอ่อน: ${sevText}`,
+        ];
+        if (findings.length === 0) {
+          lines.push("", "ผลการสแกนเบื้องต้นไม่พบจุดอ่อนตามกฎอัตโนมัติ โปรดช่วยทบทวนแนวทางป้องกันเชิงลึก (Defense-in-Depth) เพิ่มเติม");
+          return lines.join("\n");
+        }
+        lines.push("", `## รายการจุดอ่อนที่พบ (${findings.length} รายการ)`);
+        findings.forEach((f, idx) => {
+          const cwePart = f.cwe ? ` / ${f.cwe}` : "";
+          lines.push(`\n### ${idx + 1}. [${f.severity} | CVSS ${f.cvss_score ?? 0}] (${f.rule_id}${cwePart}) ${f.title}`);
+          if (f.owasp) lines.push(`- มาตรฐาน OWASP: ${f.owasp}`);
+          lines.push(`- ตำแหน่ง: \`${f.file_path}:${f.line_number}\``);
+          if (f.context_snippet && f.context_snippet.includes("\n")) lines.push("- บริบทโค้ดที่พบ:", "```", f.context_snippet, "```");
+          else if (f.code_snippet) lines.push(`- โค้ด/ค่าที่พบ: \`${f.code_snippet}\``);
+          if (f.description) lines.push(`- ความเสี่ยง: ${f.description}`);
+          if (f.remediation) lines.push(`- แนวทางแก้ไขเบื้องต้น: ${f.remediation}`);
+        });
+        lines.push(
+          "", "## สิ่งที่ต้องการให้ช่วยตอบกลับ",
+          "1. **โค้ดฉบับแก้ไขสมบูรณ์** ที่ปิดจุดอ่อนทั้งหมดข้างต้นแล้ว พร้อมคอมเมนต์สั้นๆ อธิบายเฉพาะจุดสำคัญที่ปรับแก้",
+          "2. **การตั้งค่าเพิ่มเติมที่จำเป็น** เช่น Security Headers, `.env` / `PropertiesService.getScriptProperties()`, หรือ `appsscript.json`",
+          "3. **รายการตรวจสอบซ้ำ (Verification Checklist)** หลังแก้ไข"
+        );
+        return lines.join("\n");
+      }
+
+      function generateMarkdownReport(report) {
+        const meta = report.meta || {};
+        const summary = report.summary || {};
+        const findings = report.findings || [];
+        const targetLabel = meta.url || meta.filename || meta.target || "-";
+        const sc = summary.severity_counts || {};
+        const lines = [
+          "# รายงานตรวจสอบความปลอดภัย (Vulnerability Audit Report)", "",
+          `- **โหมดการตรวจ**: \`${meta.mode || "code"}\``,
+          `- **เป้าหมาย**: \`${targetLabel}\``,
+          `- **คะแนนความปลอดภัย**: **${summary.score ?? 0}/100** (เกรด **${summary.grade ?? "-"}**)`,
+          `- **จำนวนจุดอ่อนทั้งหมด**: ${summary.total_findings ?? findings.length} รายการ`,
+          "", "## สรุปตามระดับความรุนแรง", "", "| ระดับความรุนแรง | จำนวน |", "|---|---|",
+        ];
+        SEVERITY_ORDER.forEach((s) => lines.push(`| ${s} | ${sc[s] || 0} |`));
+        if (summary.owasp_matrix) {
+          lines.push("", "## OWASP Top 10 (2021) Compliance Matrix", "", "| หมวดหมู่ OWASP | สถานะ | จำนวนที่พบ |", "|---|---|---|");
+          summary.owasp_matrix.forEach((row) => lines.push(`| ${row.category} | ${row.status === "PASS" ? "✅ PASS" : "❌ FAIL"} | ${row.count} |`));
+        }
+        lines.push("", "## รายละเอียดจุดอ่อนที่ตรวจพบ", "");
+        if (findings.length === 0) {
+          lines.push("✅ ไม่พบจุดอ่อนตามกฎการตรวจสอบ");
+          return lines.join("\n");
+        }
+        findings.forEach((f, idx) => {
+          const cwe = f.cwe ? ` (${f.cwe})` : "";
+          lines.push(`### ${idx + 1}. [${f.severity} | CVSS ${f.cvss_score ?? 0}] \`${f.rule_id}\`${cwe} — ${f.title}`);
+          if (f.owasp) lines.push(`- **OWASP Top 10**: ${f.owasp}`);
+          lines.push(`- **ตำแหน่ง**: \`${f.file_path}:${f.line_number}\``);
+          if (f.context_snippet && f.context_snippet.includes("\n")) lines.push("- **บริบทโค้ด**:", "```", f.context_snippet, "```");
+          else if (f.code_snippet) lines.push(`- **โค้ด/ค่าที่พบ**: \`${f.code_snippet}\``);
+          lines.push(`- **ความเสี่ยง**: ${f.description}`, `- **วิธีแก้ไข**: ${f.remediation}`, "");
+        });
+        return lines.join("\n");
+      }
+
+      function generateHardeningSnippets(report) {
+        const meta = report.meta || {};
+        const findings = report.findings || [];
+        const ruleIds = new Set(findings.map((f) => f.rule_id));
+        const fname = String(meta.filename || "").toLowerCase();
+        const isGas = Boolean(meta.is_apps_script) || fname.endsWith(".gs") || fname === "appsscript.json" || [...ruleIds].some((r) => r.startsWith("GAS-"));
+        const isWeb = meta.mode === "web" || [...ruleIds].some((r) => /^(HDR-|TLS-|COK-|WEB-|XSS-)/.test(r));
+        const snippets = [];
+        if (isGas) {
+          snippets.push({
+            id: "gas-hardening", language: "javascript",
+            title: "Google Apps Script: การเก็บคีย์ลับอย่างปลอดภัย + ตรวจสิทธิ์ผู้ใช้ + appsscript.json",
+            code: "// 1) Code.gs — เก็บ ID และ API Key ใน PropertiesService\nfunction getConfig_(key) {\n  const val = PropertiesService.getScriptProperties().getProperty(key);\n  if (!val) throw new Error('Missing ScriptProperty: ' + key);\n  return val;\n}\n\nfunction doGet(e) {\n  const email = Session.getActiveUser().getEmail();\n  if (!email) return HtmlService.createHtmlOutput('Unauthorized');\n  return HtmlService.createTemplateFromFile('index').evaluate().setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT);\n}\n// 2) ใน index.html ใช้ <?= value ?> แทน <?!= value ?>\n// 3) ใน appsscript.json ใช้ access: \"DOMAIN\" หรือ \"MYSELF\"",
+          });
+        }
+        if (isWeb) {
+          snippets.push({
+            id: "web-headers", language: "python",
+            title: "Web / Flask: ตั้งค่า HTTP Security Headers และ Secure Cookie Flags",
+            code: "@app.after_request\ndef add_security_headers(response):\n    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'\n    response.headers['Content-Security-Policy'] = \"default-src 'self'; script-src 'self'; object-src 'none'\"\n    response.headers['X-Frame-Options'] = 'DENY'\n    response.headers['X-Content-Type-Options'] = 'nosniff'\n    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'\n    return response",
+          });
+        }
+        snippets.push({
+          id: "safe-dom-xss", language: "javascript",
+          title: "Frontend JS: ป้องกัน DOM XSS (ใช้ textContent / escapeHtml แทน innerHTML)",
+          code: "document.getElementById('output').textContent = userMessage;\n\nfunction escapeHtml(str) {\n  return String(str ?? '')\n    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;').replace(/'/g, '&#39;');\n}",
+        });
+        return snippets;
+      }
+
+      function saveHistory(report) {
+        const meta = report.meta || {};
+        const summary = report.summary || {};
+        const id = meta.scan_id || Math.random().toString(36).slice(2, 12);
+        const ts = new Date().toISOString().replace("T", " ").slice(0, 19);
+        const targetName = meta.url || meta.filename || meta.target || "-";
+        const record = {
+          id, timestamp: ts, mode: meta.mode || "code", target_name: targetName,
+          score: summary.score ?? 0, grade: summary.grade || "-",
+          total_findings: summary.total_findings ?? 0, severity_counts: summary.severity_counts || {},
+          meta: { ...meta, scan_id: id, timestamp: ts }, summary,
+          findings: report.findings || [], ai_prompt: report.ai_prompt || "",
+          markdown_report: report.markdown_report || "", hardening_snippets: report.hardening_snippets || [],
+        };
+        try {
+          const prev = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+          const list = Array.isArray(prev) ? prev.filter((r) => r.id !== id) : [];
+          list.unshift(record);
+          localStorage.setItem(HISTORY_KEY, JSON.stringify(list.slice(0, 20)));
+        } catch (_e) {}
+        return record;
+      }
+
+      function listHistory() {
+        try {
+          const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+          return Array.isArray(list) ? list : [];
+        } catch (_e) { return []; }
+      }
+
+      function getHistoryRecord(id) {
+        return listHistory().find((r) => r.id === id) || null;
+      }
+
+      function compareScans(oldRec, newRec) {
+        const keyFn = (f) => `${f.rule_id}|${f.file_path}|${String(f.code_snippet || "").trim()}`;
+        const oldMap = new Map();
+        (oldRec.findings || []).forEach((f) => { const k = keyFn(f); if (!oldMap.has(k)) oldMap.set(k, f); });
+        const newMap = new Map();
+        (newRec.findings || []).forEach((f) => { const k = keyFn(f); if (!newMap.has(k)) newMap.set(k, f); });
+        const resolved = [];
+        oldMap.forEach((f, k) => { if (!newMap.has(k)) resolved.push(f); });
+        const remaining = [];
+        const introduced = [];
+        newMap.forEach((f, k) => { if (oldMap.has(k)) remaining.push(f); else introduced.push(f); });
+        const os = oldRec.summary ? oldRec.summary.score : (oldRec.score || 0);
+        const ns = newRec.summary ? newRec.summary.score : (newRec.score || 0);
+        return {
+          old_score: os, new_score: ns, score_diff: ns - os,
+          old_grade: (oldRec.summary && oldRec.summary.grade) || oldRec.grade || "-",
+          new_grade: (newRec.summary && newRec.summary.grade) || newRec.grade || "-",
+          resolved_count: resolved.length, remaining_count: remaining.length, new_count: introduced.length,
+          resolved_findings: resolved, remaining_findings: remaining, new_findings: introduced,
+        };
+      }
+
+      function finalizeReport(mode, meta, findings) {
+        const sorted = dedupeAndSort(findings);
+        const summary = calculateSummary(sorted);
+        const report = { success: true, meta: { mode, ...meta }, summary, findings: sorted };
+        report.ai_prompt = generateAiFixPrompt(report);
+        report.markdown_report = generateMarkdownReport(report);
+        report.hardening_snippets = generateHardeningSnippets(report);
+        const saved = saveHistory(report);
+        report.meta.scan_id = saved.id;
+        report.meta.timestamp = saved.timestamp;
+        return report;
+      }
+
+      function scanSnippet(code, filename = "Code.gs") {
+        const cleanName = (filename || "Code.gs").split(/[\\/]/).pop();
+        const dotIdx = cleanName.lastIndexOf(".");
+        const ext = cleanName === ".env" ? ".env" : (dotIdx >= 0 ? cleanName.slice(dotIdx).toLowerCase() : ".gs");
+        let findings = scanContent(code, cleanName, ext);
+        if (cleanName.toLowerCase() === "appsscript.json") {
+          findings = findings.concat(scanManifestContent(code, cleanName));
+        }
+        return finalizeReport("snippet", { filename: cleanName, scanned_files: 1 }, findings);
+      }
+
+      function scanFileEntries(entries, targetLabel) {
+        let allFindings = [];
+        let scannedFiles = 0;
+        let hasEnv = false;
+        let gitignoreHasEnv = false;
+
+        for (const entry of entries) {
+          const rel = entry.path.replace(/\\/g, "/");
+          const parts = rel.split("/");
+          if (parts.some((p, idx) => idx < parts.length - 1 && (IGNORED_DIRS.has(p) || p.startsWith(".")))) continue;
+          const fname = parts[parts.length - 1];
+          const lower = fname.toLowerCase();
+          if (lower === ".env") hasEnv = true;
+          if (lower === ".gitignore" && /^\s*(?:\/?\.env\*?|\*\.env)\s*$/m.test(entry.content)) gitignoreHasEnv = true;
+
+          const dotIdx = fname.lastIndexOf(".");
+          const ext = lower === ".env" ? ".env" : (dotIdx >= 0 ? fname.slice(dotIdx).toLowerCase() : "");
+          if (lower === ".env" || SUPPORTED_EXT.has(ext)) {
+            scannedFiles += 1;
+            allFindings = allFindings.concat(scanContent(entry.content, rel, ext));
+          }
+          if (["requirements.txt", "package.json", "dockerfile", "appsscript.json"].includes(lower)) {
+            allFindings = allFindings.concat(scanDependencyFile(entry.content, fname, rel));
+          }
+        }
+        if (hasEnv && !gitignoreHasEnv) {
+          allFindings.push(enrichFinding({
+            rule_id: "DEP-005", severity: "HIGH", category: "Configuration", cwe: "CWE-312",
+            title: "พบไฟล์ .env แต่ไม่ได้ระบุไว้ใน .gitignore",
+            file_path: ".env", line_number: 1, code_snippet: ".env present without .gitignore rule",
+            description: "อาจเผลอ Commit ข้อมูลลับในไฟล์ .env ขึ้น Git Repository สาธารณะได้",
+            remediation: "เพิ่มบรรทัด .env ลงในไฟล์ .gitignore",
+          }));
+        }
+        return finalizeReport("code", { target: targetLabel, scanned_files: scannedFiles }, allFindings);
+      }
+
+      const DEMO_FILES = [
+        {
+          path: "Code.gs",
+          content: "// Demo Google Apps Script\nconst API_KEY = \"sk-gasdemo1234567890abcdef123456\";\nconst SPREADSHEET_ID = \"1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms\";\n\nfunction doGet(e) {\n  const tpl = HtmlService.createTemplateFromFile(\"index\");\n  return tpl.evaluate().setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);\n}\n\nfunction saveLead(name) {\n  SpreadsheetApp.getActiveSheet().appendRow([name]);\n}\n\nfunction callApi(url, expr) {\n  UrlFetchApp.fetch(url, { validateHttpsCertificates: false });\n  return eval(expr);\n}\n",
+        },
+        {
+          path: "appsscript.json",
+          content: "{\n  \"timeZone\": \"Asia/Bangkok\",\n  \"runtimeVersion\": \"V8\",\n  \"oauthScopes\": [\"https://www.googleapis.com/auth/drive\"],\n  \"webapp\": { \"executeAs\": \"USER_DEPLOYING\", \"access\": \"ANYONE_ANONYMOUS\" }\n}\n",
+        },
+        {
+          path: "demo_app.py",
+          content: "import hashlib, pickle, subprocess, requests\nAPI_KEY = \"sk-demo1234567890abcdef1234567890\"\n\ndef get_user(cursor, username):\n    query = f\"SELECT * FROM users WHERE username = '{username}'\"\n    cursor.execute(query)\n\ndef run_ping(host):\n    return subprocess.Popen(f\"ping -c 1 {host}\", shell=True)\n\ndef append_item(item, bucket=[]):\n    try:\n        bucket.append(item)\n    except:\n        pass\n    return bucket\n\napp.run(debug=True)\n",
+        },
+        {
+          path: "index.html",
+          content: "<div id=\"gas-comment\"><?!= userComment ?></div>\n<form method=\"POST\" action=\"/transfer\"><input name=\"amount\"></form>\n<script>\n  const params = new URLSearchParams(location.search);\n  document.getElementById(\"output\").innerHTML = params.get(\"msg\");\n<" + "/script>\n",
+        },
+        {
+          path: "requirements.txt",
+          content: "flask\nrequests>=2.28.0\npyyaml\n",
+        },
+      ];
+
+      function scanDemo() {
+        return scanFileEntries(DEMO_FILES, "sample_vulnerable_app (Demo)");
+      }
+
+      function unpackAppsScriptHtml(body) {
+        const marker = "goog.script.init(";
+        const idx = body.indexOf(marker);
+        if (idx === -1) return null;
+        let pos = idx + marker.length;
+        while (pos < body.length && /\s/.test(body[pos])) pos++;
+        const ch = body[pos];
+        try {
+          if (ch === "\"") {
+            let i = pos + 1;
+            let escaped = false;
+            while (i < body.length) {
+              if (escaped) escaped = false;
+              else if (body[i] === "\\") escaped = true;
+              else if (body[i] === "\"") break;
+              i++;
+            }
+            const rawStr = JSON.parse(body.slice(pos, i + 1));
+            if (typeof rawStr === "string") {
+              const trimmed = rawStr.trim();
+              if (trimmed.startsWith("{")) {
+                const obj = JSON.parse(trimmed);
+                if (obj && typeof obj.userHtml === "string" && obj.userHtml.trim()) return obj.userHtml;
+              } else if (trimmed) {
+                return trimmed;
+              }
+            }
+          } else if (ch === "{") {
+            let depth = 0, inStr = false, esc = false, end = pos;
+            for (let i = pos; i < body.length; i++) {
+              const c = body[i];
+              if (inStr) {
+                if (esc) esc = false;
+                else if (c === "\\") esc = true;
+                else if (c === "\"") inStr = false;
+              } else {
+                if (c === "\"") inStr = true;
+                else if (c === "{") depth++;
+                else if (c === "}") { depth--; if (depth === 0) { end = i + 1; break; } }
+              }
+            }
+            const obj = JSON.parse(body.slice(pos, end));
+            if (obj && typeof obj.userHtml === "string" && obj.userHtml.trim()) return obj.userHtml;
+          }
+        } catch (_e) {}
+        return null;
+      }
+
+      async function fetchWebHtmlWithFallback(targetUrl) {
+        try {
+          const direct = await fetch(targetUrl, { method: "GET" });
+          const text = await direct.text();
+          return { html: text, finalUrl: direct.url || targetUrl, statusCode: direct.status || 200, viaProxy: false };
+        } catch (_corsErr) {}
+
+        try {
+          const aoUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+          const aoRes = await fetch(aoUrl);
+          if (aoRes.ok) {
+            const data = await aoRes.json();
+            if (data && typeof data.contents === "string") {
+              const st = data.status || {};
+              return { html: data.contents, finalUrl: st.url || targetUrl, statusCode: st.http_code || 200, viaProxy: true };
+            }
+          }
+        } catch (_e) {}
+
+        try {
+          const ctUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
+          const ctRes = await fetch(ctUrl);
+          if (ctRes.ok) {
+            const text = await ctRes.text();
+            return { html: text, finalUrl: targetUrl, statusCode: 200, viaProxy: true };
+          }
+        } catch (_e) {}
+
+        throw new Error("ไม่สามารถดึงหน้าเว็บเป้าหมายจากเบราว์เซอร์ได้ (อาจเป็น localhost/เครือข่ายภายใน หรือเว็บปลายทางบล็อก Proxy) — หากต้องการตรวจเว็บภายในหรือตรวจ HTTP Headers/Cookie เต็มรูปแบบ กรุณารันด้วย 'python app.py' ในเครื่อง หรือวางโค้ดในแท็บ 3");
+      }
+
+      async function scanWebUrl(rawUrl) {
+        let normalized = rawUrl.trim();
+        if (!/^https?:\/\//i.test(normalized)) normalized = "https://" + normalized;
+        let parsed;
+        try { parsed = new URL(normalized); } catch (_e) { throw new Error("URL ไม่ถูกต้อง กรุณาระบุ URL เช่น https://example.com"); }
+
+        const fetched = await fetchWebHtmlWithFallback(normalized);
+        let finalParsed;
+        try { finalParsed = new URL(fetched.finalUrl); } catch (_e) { finalParsed = parsed; }
+
+        const isHttps = finalParsed.protocol === "https:";
+        const findings = [];
+        const fullBody = fetched.html || "";
+
+        if (!isHttps) {
+          findings.push(enrichFinding({
+            rule_id: "TLS-001", severity: "HIGH", category: "Transport Security", cwe: "CWE-319",
+            title: "เว็บไซต์ไม่ได้ใช้งานผ่าน HTTPS (การสื่อสารไม่ถูกเข้ารหัส)",
+            file_path: fetched.finalUrl, line_number: 1, code_snippet: `Scheme: ${finalParsed.protocol.replace(":", "")}`,
+            description: "การเชื่อมต่อผ่าน HTTP ธรรมดาทำให้ข้อมูลรหัสผ่านและ Token ถูกดักอ่านระหว่างทางได้",
+            remediation: "ติดตั้งใบรับรอง SSL/TLS และ Redirect ไปยัง HTTPS ทั้งหมด",
+          }));
+        }
+
+        if (fetched.viaProxy) {
+          findings.push(enrichFinding({
+            rule_id: "INF-003", severity: "INFO", category: "Browser Audit Scope", cwe: "CWE-200",
+            title: "สแกนผ่านโหมด GitHub Pages (เบราว์เซอร์) — ตรวจเนื้อหา HTML/JS/Apps Script ครบถ้วน",
+            file_path: fetched.finalUrl, line_number: 1, code_snippet: "Static Browser Mode (CORS Proxy)",
+            confidence: "HIGH",
+            description: "เบราว์เซอร์ไม่สามารถอ่าน Response Headers (เช่น CSP, HSTS, Set-Cookie) ของโดเมนอื่นได้โดยตรงจาก GitHub Pages ระบบจึงตรวจสอบเชิงลึกจาก HTML, JavaScript และ Apps Script Payload ให้แทน",
+            remediation: "หากต้องการตรวจ HTTP Security Headers และ Cookie Flags ด้วย แนะนำรัน 'python app.py' บนเครื่องของคุณ",
+          }));
+        }
+
+        const isGasUrl = normalized.toLowerCase().includes("script.google.com/macros/")
+          || finalParsed.hostname.toLowerCase().includes("script.googleusercontent.com")
+          || fullBody.includes("goog.script.init(");
+        const isGasLogin = isGasUrl && (finalParsed.hostname.toLowerCase().includes("accounts.google.com") || /accounts\.google\.com\/v3\/signin/i.test(fullBody));
+
+        let unpackedGas = false;
+        let scannedScripts = 0;
+
+        if (isGasUrl) {
+          if (isGasLogin) {
+            findings.push(enrichFinding({
+              rule_id: "GAS-WEB-002", severity: "INFO", category: "Access Control (Apps Script)", cwe: "CWE-284",
+              title: "Google Apps Script Web App บังคับล็อกอินบัญชี Google ก่อนเข้าใช้งาน",
+              file_path: fetched.finalUrl, line_number: 1, code_snippet: `Login required (${finalParsed.hostname})`,
+              description: "Web App ไม่ได้เปิดแบบสาธารณะ (Anonymous) จึงสแกนจากภายนอกได้เพียงหน้า Sign-in",
+              remediation: "คัดลอกโค้ด .gs / .html / appsscript.json มาวางตรวจในแท็บ '3. วางโค้ด' เพื่อตรวจจุดอ่อนภายในโค้ด",
+            }));
+          } else {
+            findings.push(enrichFinding({
+              rule_id: "GAS-WEB-001", severity: "MEDIUM", category: "Access Control (Apps Script)", cwe: "CWE-284",
+              title: "Google Apps Script Web App เปิดเข้าถึงได้แบบสาธารณะโดยไม่ต้องล็อกอิน (ANYONE_ANONYMOUS)",
+              file_path: fetched.finalUrl, line_number: 1, code_snippet: `Public Apps Script URL (HTTP ${fetched.statusCode})`,
+              description: "บุคคลทั่วไปสามารถเรียก URL นี้ได้โดยไม่ต้องลงชื่อเข้าใช้ Google หากตั้ง Execute as 'Me' ร่วมด้วย อาจเสี่ยงต่อข้อมูลใน Google Sheets / Drive",
+              remediation: "ตรวจสอบสิทธิ์ใน doGet/doPost หรือเปลี่ยนการ Deploy เป็น 'Anyone with Google account' / 'Only myself'",
+            }));
+          }
+        }
+
+        if (!isGasLogin) {
+          const gasUserHtml = isGasUrl ? unpackAppsScriptHtml(fullBody) : null;
+          let targetHtml;
+          if (gasUserHtml !== null) {
+            unpackedGas = true;
+            targetHtml = gasUserHtml;
+          } else {
+            targetHtml = fullBody.slice(0, 300000);
+          }
+
+          // Detect google.script.run functions
+          const runnerIgnore = new Set(["withSuccessHandler", "withFailureHandler", "withUserObject"]);
+          const calledFuncs = [];
+          const runBlockRegex = /google\.script\.run((?:\s*\.\s*[A-Za-z_$][\w$]*(?:\s*\([^)]*\))?)+)/g;
+          let bm;
+          while ((bm = runBlockRegex.exec(targetHtml)) !== null) {
+            const methodRegex = /\.\s*([A-Za-z_$][\w$]*)\s*\(/g;
+            let mm;
+            while ((mm = methodRegex.exec(bm[1])) !== null) {
+              if (!runnerIgnore.has(mm[1]) && !calledFuncs.includes(mm[1])) calledFuncs.push(mm[1]);
+            }
+          }
+          if (calledFuncs.length > 0) {
+            const hasSens = calledFuncs.some((fn) => /(delete|remove|update|save|insert|admin|exec|clear|set|write|edit|create|drop)/i.test(fn));
+            if (hasSens || (isGasUrl && !isGasLogin)) {
+              findings.push(enrichFinding({
+                rule_id: "GAS-WEB-003", severity: (hasSens && isGasUrl) ? "HIGH" : "MEDIUM",
+                category: "Access Control (Apps Script)", cwe: "CWE-284",
+                title: `เปิดให้หน้าเว็บเรียกฟังก์ชันฝั่งเซิร์ฟเวอร์ผ่าน google.script.run (${calledFuncs.length} ฟังก์ชัน)`,
+                file_path: fetched.finalUrl, line_number: 1,
+                code_snippet: "google.script.run: " + calledFuncs.join(", "),
+                description: "ผู้ใช้งานสามารถเรียกใช้ฟังก์ชันเหล่านี้ผ่าน DevTools Console ได้โดยตรง",
+                remediation: "ตรวจสอบสิทธิ์และ Input ฝั่งเซิร์ฟเวอร์ในไฟล์ .gs ทุกครั้งก่อนแก้ไขหรือคืนข้อมูล",
+              }));
+            }
+          }
+
+          // HTML structural checks
+          if (isHttps) {
+            const mix = targetHtml.match(/<(?:script|iframe|form)\b[^>]*(?:src|action)\s*=\s*['"](http:\/\/[^'"]+)['"]/i);
+            if (mix) {
+              findings.push(enrichFinding({
+                rule_id: "WEB-HTML-001", severity: "MEDIUM", category: "Mixed Content", cwe: "CWE-319",
+                title: "หน้าเว็บ HTTPS มีการโหลด Script/Iframe หรือส่งฟอร์มผ่าน HTTP ที่ไม่เข้ารหัส",
+                file_path: fetched.finalUrl, line_number: 1, code_snippet: mix[0].slice(0, 180),
+                description: "ทรัพยากร http:// บนหน้า HTTPS เสี่ยงต่อการถูกดักแก้ไขระหว่างทาง",
+                remediation: "เปลี่ยน URL ทั้งหมดเป็น https://",
+              }));
+            }
+          } else {
+            const pwd = targetHtml.match(/<input\b[^>]*\btype\s*=\s*['"]?password['"]?[^>]*>/i);
+            if (pwd) {
+              findings.push(enrichFinding({
+                rule_id: "WEB-HTML-003", severity: "HIGH", category: "Insecure Authentication", cwe: "CWE-319",
+                title: "พบช่องกรอกรหัสผ่าน (<input type=\"password\">) บนหน้าเว็บที่ไม่ได้ใช้ HTTPS",
+                file_path: fetched.finalUrl, line_number: 1, code_snippet: pwd[0].slice(0, 180),
+                description: "การส่งรหัสผ่านผ่าน HTTP เสี่ยงต่อการถูกดักอ่านเป็นข้อความธรรมดา",
+                remediation: "เปิดใช้งาน HTTPS ก่อนให้บริการหน้า Login",
+              }));
+            }
+          }
+
+          // External script SRI check
+          const scriptTagRegex = new RegExp("<script\\b([^>]*)>([\\s\\S]*?)<\\/script>", "gi");
+          const inlineScripts = [];
+          let sm;
+          while ((sm = scriptTagRegex.exec(targetHtml)) !== null) {
+            const attrs = sm[1] || "";
+            const body = sm[2] || "";
+            const srcMatch = attrs.match(/\bsrc\s*=\s*['"]([^'"]+)['"]/i);
+            if (srcMatch) {
+              try {
+                const abs = new URL(srcMatch[1].trim(), fetched.finalUrl);
+                if (abs.host.toLowerCase() !== finalParsed.host.toLowerCase() && !/\bintegrity\s*=/i.test(attrs)) {
+                  findings.push(enrichFinding({
+                    rule_id: "WEB-HTML-002", severity: "LOW", category: "Subresource Integrity", cwe: "CWE-353",
+                    title: `โหลดสคริปต์ภายนอกจาก \`${abs.host}\` โดยไม่มี Subresource Integrity (SRI)`,
+                    file_path: fetched.finalUrl, line_number: 1, code_snippet: `<script src="${srcMatch[1]}">`.slice(0, 180),
+                    description: "การโหลด JS จาก CDN ภายนอกโดยไม่มี integrity อาจรันโค้ดอันตรายหาก CDN ถูกแฮก",
+                    remediation: "เพิ่มแอตทริบิวต์ integrity=\"sha384-...\" และ crossorigin=\"anonymous\"",
+                  }));
+                }
+              } catch (_e) {}
+            } else if (body.trim()) {
+              inlineScripts.push(body);
+            }
+          }
+
+          // HTML comments, Source Map, Reverse Tabnabbing
+          const cmtRegex = /<!--([\s\S]*?)-->/g;
+          let cm;
+          while ((cm = cmtRegex.exec(targetHtml)) !== null) {
+            if (/\b(?:TODO|FIXME|BUG|SECRET|PASSWORD|TOKEN|API_KEY|DEBUG)\b/i.test(cm[1])) {
+              findings.push(enrichFinding({
+                rule_id: "WEB-HTML-004", severity: "LOW", category: "Information Disclosure", cwe: "CWE-615",
+                title: "พบคอมเมนต์ HTML ที่อาจเปิดเผยข้อมูลภายในของนักพัฒนา",
+                file_path: fetched.finalUrl, line_number: 1, code_snippet: `<!-- ${cm[1].trim().slice(0, 160)} -->`,
+                description: "คอมเมนต์ HTML ถูกส่งไปยังผู้ใช้ทุกคนและอาจเปิดเผยเบาะแสของระบบ",
+                remediation: "ลบคอมเมนต์ภายในออกจาก HTML ก่อนนำขึ้นใช้งานจริง",
+              }));
+              break;
+            }
+          }
+
+          const srcMapMatch = targetHtml.match(/sourceMappingURL\s*=\s*([^\s'"]+)/i);
+          if (srcMapMatch) {
+            findings.push(enrichFinding({
+              rule_id: "WEB-HTML-005", severity: "LOW", category: "Information Disclosure", cwe: "CWE-540",
+              title: "พบ Source Map (sourceMappingURL) เปิดเผยโครงสร้างซอร์สโค้ดบน Production",
+              file_path: fetched.finalUrl, line_number: 1, code_snippet: srcMapMatch[0].slice(0, 180),
+              description: "ไฟล์ .map อาจเปิดเผยซอร์สโค้ดฝั่ง Frontend ทั้งหมด",
+              remediation: "ปิดการสร้าง/อัปโหลด .map บน Production",
+            }));
+          }
+
+          const anchorRegex = /<a\b([^>]*)>/gi;
+          let am;
+          while ((am = anchorRegex.exec(targetHtml)) !== null) {
+            const attrs = am[1];
+            if (!/\btarget\s*=\s*['"]?_blank['"]?/i.test(attrs)) continue;
+            const hrefM = attrs.match(/\bhref\s*=\s*['"](https?:\/\/[^'"]+)['"]/i);
+            if (!hrefM) continue;
+            try {
+              if (new URL(hrefM[1]).host.toLowerCase() === finalParsed.host.toLowerCase()) continue;
+            } catch (_e) { continue; }
+            const relM = attrs.match(/\brel\s*=\s*['"]([^'"]+)['"]/i);
+            const relV = relM ? relM[1].toLowerCase() : "";
+            if (!relV.includes("noopener") && !relV.includes("noreferrer")) {
+              findings.push(enrichFinding({
+                rule_id: "WEB-HTML-006", severity: "LOW", category: "Reverse Tabnabbing", cwe: "CWE-1022",
+                title: "ลิงก์ target=\"_blank\" ออกนอกเว็บโดยไม่มี rel=\"noopener noreferrer\"",
+                file_path: fetched.finalUrl, line_number: 1, code_snippet: `<a ${attrs.trim().slice(0, 150)}>`,
+                description: "เว็บปลายทางอาจเข้าถึง window.opener เพื่อทำ Reverse Tabnabbing ได้",
+                remediation: "เพิ่ม rel=\"noopener noreferrer\" ในลิงก์ target=\"_blank\" ที่ออกนอกโดเมน",
+              }));
+              break;
+            }
+          }
+
+          // SAST scan HTML + inline JS separately
+          const htmlWithoutInline = targetHtml.replace(new RegExp("<script\\b(?![^>]*\\bsrc\\s*=)[^>]*>[\\s\\S]*?<\\/script>", "gi"), "<script><" + "/script>");
+          const targetFileLabel = unpackedGas ? `${fetched.finalUrl} (Apps Script userHtml)` : fetched.finalUrl;
+          scanContent(htmlWithoutInline, targetFileLabel, ".html").forEach((item) => findings.push(item));
+          scannedScripts += inlineScripts.length;
+          inlineScripts.forEach((scriptBody) => {
+            scanContent(scriptBody, targetFileLabel, ".js").forEach((item) => findings.push(item));
+          });
+        }
+
+        return finalizeReport("web", {
+          url: fetched.finalUrl,
+          status_code: fetched.statusCode,
+          https: isHttps,
+          scanned_scripts: scannedScripts,
+          is_apps_script: isGasUrl,
+          unpacked_gas_html: unpackedGas,
+        }, findings);
+      }
+
+      return {
+        scanSnippet, scanFileEntries, scanDemo, scanWebUrl,
+        listHistory, getHistoryRecord, compareScans, IGNORED_DIRS,
+      };
+    })();
+  </script>
+
+  <script>
+    let currentReport = null;
+    let lastFilteredFindings = [];
+    let backendAvailable = !(window.location.hostname.endsWith("github.io") || window.location.protocol === "file:");
+
+    function updateModeBadge() {
+      const badge = document.getElementById("runtime-mode-badge");
+      if (!badge) return;
+      if (backendAvailable) {
+        badge.textContent = "🟢 Python Server Mode (Full Audit)";
+      } else {
+        badge.textContent = "🌐 Static / GitHub Pages Mode";
+      }
+    }
+    updateModeBadge();
+
+    class StaticModeError extends Error {}
+
+    async function tryApiJson(url, options) {
+      if (!backendAvailable) throw new StaticModeError("Static mode");
+      let res;
+      try {
+        res = await fetch(url, options);
+      } catch (_netErr) {
+        backendAvailable = false;
+        updateModeBadge();
+        throw new StaticModeError("Backend unreachable");
+      }
+      const ctype = (res.headers.get("content-type") || "").toLowerCase();
+      if (!ctype.includes("application/json")) {
+        backendAvailable = false;
+        updateModeBadge();
+        throw new StaticModeError("Non-JSON response from static host");
+      }
+      const data = await res.json();
+      return { res, data };
+    }
+
+    const SEVERITY_COLORS = {
+      CRITICAL: "#ef4444",
+      HIGH: "#f97316",
+      MEDIUM: "#eab308",
+      LOW: "#3b82f6",
+      INFO: "#64748b",
+    };
+
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function showBanner(type, message) {
+      const el = document.getElementById("status-banner");
+      if (!message) {
+        el.className = "status-banner";
+        el.textContent = "";
+        return;
+      }
+      el.className = `status-banner ${type}`;
+      el.textContent = message;
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll(".tab-btn").forEach((b) => {
+        b.classList.toggle("active", b.dataset.tab === tabId);
+      });
+      document.querySelectorAll(".tab-content").forEach((c) => {
+        c.classList.toggle("active", c.id === tabId);
+      });
+    }
+
+    // Tab switching
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        switchTab(btn.dataset.tab);
+      });
+    });
+
+    async function runCodeScan(targetPath) {
+      showBanner("loading", "กำลังวิเคราะห์ซอร์สโค้ดและไฟล์กำหนดค่า กรุณารอสักครู่...");
+      try {
+        const { res, data } = await tryApiJson("/api/scan/code", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path: targetPath }),
+        });
+        if (!res.ok || !data.success) {
+          showBanner("error", data.error || "เกิดข้อผิดพลาดในการสแกนซอร์สโค้ด");
+          return;
+        }
+        showBanner("", "");
+        renderReport(data);
+      } catch (err) {
+        if (err instanceof StaticModeError) {
+          if (targetPath.trim().toLowerCase() === "demo") {
+            const report = ClientEngine.scanDemo();
+            showBanner("", "");
+            renderReport(report);
+            return;
+          }
+          showBanner("error", "บน GitHub Pages ไม่สามารถเข้าถึง Path บนเครื่องจากตัวอักษรได้โดยตรง กรุณากดปุ่ม '📁 เลือกโฟลเดอร์...' เพื่อเลือกโฟลเดอร์ผ่านเบราว์เซอร์ หรือกด '⚡ ทดลองสแกนโปรเจกต์ตัวอย่าง (Demo)'");
+          return;
+        }
+        showBanner("error", "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: " + err.message);
+      }
+    }
+
+    async function runSnippetScan(codeText, filename) {
+      showBanner("loading", `กำลังวิเคราะห์โค้ด (${filename}) กรุณารอสักครู่...`);
+      try {
+        const { res, data } = await tryApiJson("/api/scan/snippet", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: codeText, filename: filename }),
+        });
+        if (!res.ok || !data.success) {
+          showBanner("error", data.error || "เกิดข้อผิดพลาดในการสแกนโค้ด");
+          return;
+        }
+        showBanner("", "");
+        renderReport(data);
+      } catch (err) {
+        if (err instanceof StaticModeError) {
+          const report = ClientEngine.scanSnippet(codeText, filename);
+          showBanner("", "");
+          renderReport(report);
+          return;
+        }
+        showBanner("error", "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: " + err.message);
+      }
+    }
+
+    async function runWebScan(targetUrl) {
+      showBanner("loading", "กำลังตรวจสอบเว็บไซต์และวิเคราะห์โครงสร้างโค้ด กรุณารอสักครู่...");
+      try {
+        const { res, data } = await tryApiJson("/api/scan/web", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: targetUrl }),
+        });
+        if (!res.ok || !data.success) {
+          showBanner("error", data.error || "เกิดข้อผิดพลาดในการตรวจสอบเว็บไซต์");
+          return;
+        }
+        showBanner("", "");
+        renderReport(data);
+      } catch (err) {
+        if (err instanceof StaticModeError) {
+          try {
+            const report = await ClientEngine.scanWebUrl(targetUrl);
+            showBanner("", "");
+            renderReport(report);
+          } catch (clientErr) {
+            showBanner("error", clientErr.message || "ไม่สามารถตรวจสอบเว็บไซต์นี้จากเบราว์เซอร์ได้");
+          }
+          return;
+        }
+        showBanner("error", "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: " + err.message);
+      }
+    }
+
+    document.getElementById("scan-code-btn").addEventListener("click", () => {
+      const val = document.getElementById("code-path-input").value.trim();
+      if (!val) {
+        showBanner("error", "กรุณาระบุ Path ของโฟลเดอร์หรือไฟล์ หรือกดปุ่ม Demo");
+        return;
+      }
+      if (/^https?:\/\//i.test(val)) {
+        switchTab("web-tab");
+        document.getElementById("web-url-input").value = val;
+        runWebScan(val);
+        return;
+      }
+      runCodeScan(val);
+    });
+
+    document.getElementById("code-path-input").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        document.getElementById("scan-code-btn").click();
+      }
+    });
+
+    document.getElementById("scan-demo-btn").addEventListener("click", () => {
+      document.getElementById("code-path-input").value = "demo";
+      runCodeScan("demo");
+    });
+
+    document.getElementById("browse-btn").addEventListener("click", async () => {
+      try {
+        const { data } = await tryApiJson("/api/browse");
+        if (data.success && data.path) {
+          document.getElementById("code-path-input").value = data.path;
+        } else if (data.error) {
+          showBanner("error", data.error);
+        }
+      } catch (err) {
+        if (err instanceof StaticModeError) {
+          document.getElementById("browser-folder-input").click();
+          return;
+        }
+        showBanner("error", "ไม่สามารถเปิดหน้าต่างเลือกโฟลเดอร์ได้: " + err.message);
+      }
+    });
+
+    document.getElementById("browser-folder-input").addEventListener("change", async (e) => {
+      const files = Array.from(e.target.files || []);
+      if (files.length === 0) return;
+      showBanner("loading", `กำลังอ่านและสแกนไฟล์ในโฟลเดอร์ (${files.length} ไฟล์)...`);
+      const entries = [];
+      let rootFolder = "Browser Folder";
+      for (const file of files) {
+        const relPath = file.webkitRelativePath || file.name;
+        if (relPath.includes("/")) rootFolder = relPath.split("/")[0];
+        const parts = relPath.split("/");
+        if (parts.some((p, i) => i < parts.length - 1 && (ClientEngine.IGNORED_DIRS.has(p) || p.startsWith(".")))) {
+          continue;
+        }
+        if (file.size > 1500000) continue;
+        try {
+          const content = await file.text();
+          entries.push({ path: relPath, content });
+        } catch (_err) {}
+      }
+      document.getElementById("code-path-input").value = rootFolder;
+      const report = ClientEngine.scanFileEntries(entries, rootFolder);
+      showBanner("", "");
+      renderReport(report);
+      e.target.value = "";
+    });
+
+    document.getElementById("scan-snippet-btn").addEventListener("click", () => {
+      const codeText = document.getElementById("snippet-code-input").value;
+      const filename = document.getElementById("snippet-filename").value;
+      if (!codeText.trim()) {
+        showBanner("error", "กรุณาวางโค้ดที่ต้องการตรวจสอบ หรือกดปุ่มโหลดตัวอย่าง");
+        return;
+      }
+      runSnippetScan(codeText, filename);
+    });
+
+    document.getElementById("load-gas-sample-btn").addEventListener("click", () => {
+      document.getElementById("snippet-filename").value = "Code.gs";
+      document.getElementById("snippet-code-input").value =
+`const API_KEY = "sk-gasdemo1234567890abcdef123456";
+const SPREADSHEET_ID = "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms";
+
+function doGet(e) {
+  const tpl = HtmlService.createTemplateFromFile("index");
+  return tpl.evaluate().setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function callApi(url, expr) {
+  UrlFetchApp.fetch(url, { validateHttpsCertificates: false });
+  return eval(expr);
+}`;
+    });
+
+    document.getElementById("scan-web-btn").addEventListener("click", () => {
+      const val = document.getElementById("web-url-input").value.trim();
+      if (!val) {
+        showBanner("error", "กรุณาระบุ URL ที่ต้องการตรวจสอบ");
+        return;
+      }
+      runWebScan(val);
+    });
+
+    document.getElementById("web-url-input").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        document.getElementById("scan-web-btn").click();
+      }
+    });
+
+    document.getElementById("scan-self-btn").addEventListener("click", () => {
+      const selfUrl = window.location.origin;
+      document.getElementById("web-url-input").value = selfUrl;
+      runWebScan(selfUrl);
+    });
+
+    function renderReport(report) {
+      currentReport = report;
+      document.getElementById("results-section").style.display = "block";
+
+      const { summary, findings, meta } = report;
+      const gradeEl = document.getElementById("grade-circle");
+      gradeEl.textContent = summary.grade;
+      const gradeColors = { A: "#22c55e", B: "#38bdf8", C: "#eab308", D: "#f97316", F: "#ef4444" };
+      const gColor = gradeColors[summary.grade] || "#38bdf8";
+      gradeEl.style.borderColor = gColor;
+      gradeEl.style.color = gColor;
+
+      document.getElementById("score-value").textContent = summary.score;
+      document.getElementById("max-cvss-label").textContent = `Max CVSS v3.1: ${summary.max_cvss ?? 0.0}`;
+      if (meta && meta.mode === "code") {
+        document.getElementById("scan-meta-label").textContent =
+          `สแกนแล้ว ${meta.scanned_files} ไฟล์ • พบ ${summary.total_findings} จุด`;
+      } else if (meta && meta.mode === "snippet") {
+        document.getElementById("scan-meta-label").textContent =
+          `ไฟล์ ${meta.filename} • พบ ${summary.total_findings} จุด`;
+      } else if (meta && meta.mode === "web") {
+        const scriptCount = meta.scanned_scripts || 0;
+        const gasTag = meta.unpacked_gas_html ? " • ถอดรหัส Apps Script แล้ว" : "";
+        document.getElementById("scan-meta-label").textContent =
+          `HTTP ${meta.status_code} • ตรวจ ${scriptCount} สคริปต์${gasTag} • พบ ${summary.total_findings} จุด`;
+      }
+
+      // Render severity bars
+      const barsEl = document.getElementById("severity-bars");
+      const maxCount = Math.max(1, ...Object.values(summary.severity_counts));
+      barsEl.innerHTML = Object.entries(summary.severity_counts)
+        .map(([sev, count]) => {
+          const pct = Math.round((count / maxCount) * 100);
+          const color = SEVERITY_COLORS[sev] || "#64748b";
+          return `
+            <div class="sev-bar-row">
+              <strong>${escapeHtml(sev)}</strong>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:${pct}%; background:${color};"></div>
+              </div>
+              <span style="text-align:right;">${count}</span>
+            </div>
+          `;
+        })
+        .join("");
+
+      // Populate category & OWASP filters
+      const catSelect = document.getElementById("filter-category");
+      const categories = Object.keys(summary.category_counts || {}).sort();
+      catSelect.innerHTML = `<option value="ALL">หมวดหมู่: ทั้งหมด</option>` +
+        categories.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)} (${summary.category_counts[c]})</option>`).join("");
+
+      const owaspSelect = document.getElementById("filter-owasp");
+      const owaspMatrix = summary.owasp_matrix || [];
+      owaspSelect.innerHTML = `<option value="ALL">OWASP Top 10: ทั้งหมด</option>` +
+        owaspMatrix.filter((m) => m.count > 0).map((m) => `<option value="${escapeHtml(m.category)}">${escapeHtml(m.category)} (${m.count})</option>`).join("");
+
+      document.getElementById("filter-severity").value = "ALL";
+      document.getElementById("filter-owasp").value = "ALL";
+      document.getElementById("filter-search").value = "";
+      document.getElementById("comparison-card").style.display = "none";
+      const includeWrap = document.getElementById("prompt-include-source-wrap");
+      includeWrap.style.display = meta && meta.mode === "snippet" ? "inline-flex" : "none";
+      renderOwaspMatrix(owaspMatrix);
+      renderFindingsList();
+      renderHardeningSnippets(report.hardening_snippets || []);
+      loadHistory();
+    }
+
+    function renderOwaspMatrix(matrix) {
+      const panel = document.getElementById("owasp-matrix-panel");
+      const grid = document.getElementById("owasp-grid");
+      const clearBtn = document.getElementById("clear-owasp-filter-btn");
+      if (!matrix || matrix.length === 0) {
+        panel.style.display = "none";
+        return;
+      }
+      panel.style.display = "block";
+      const selectedOwasp = document.getElementById("filter-owasp").value;
+      clearBtn.style.display = selectedOwasp !== "ALL" ? "inline-flex" : "none";
+
+      grid.innerHTML = matrix.map((row) => {
+        const isFail = row.status === "FAIL";
+        const isActive = selectedOwasp === row.category;
+        return `
+          <button type="button" class="owasp-pill ${isFail ? "fail" : "pass"} ${isActive ? "active-filter" : ""}" data-owasp="${escapeHtml(row.category)}">
+            <span><strong>${escapeHtml(row.code)}</strong> ${escapeHtml(row.category.split(" - ")[1] || "")}</span>
+            <span class="owasp-status ${isFail ? "fail" : "pass"}">${isFail ? `FAIL (${row.count})` : "PASS"}</span>
+          </button>
+        `;
+      }).join("");
+
+      grid.querySelectorAll(".owasp-pill").forEach((pill) => {
+        pill.addEventListener("click", () => {
+          const val = pill.dataset.owasp;
+          const select = document.getElementById("filter-owasp");
+          const hasOption = Array.from(select.options).some((o) => o.value === val);
+          if (!hasOption) return;
+          select.value = select.value === val ? "ALL" : val;
+          renderOwaspMatrix(matrix);
+          renderFindingsList();
+        });
+      });
+    }
+
+    document.getElementById("clear-owasp-filter-btn").addEventListener("click", () => {
+      document.getElementById("filter-owasp").value = "ALL";
+      if (currentReport && currentReport.summary) {
+        renderOwaspMatrix(currentReport.summary.owasp_matrix || []);
+      }
+      renderFindingsList();
+    });
+
+    function getFilteredFindings() {
+      if (!currentReport) return [];
+      const sevFilter = document.getElementById("filter-severity").value;
+      const catFilter = document.getElementById("filter-category").value;
+      const owaspFilter = document.getElementById("filter-owasp").value;
+      const q = document.getElementById("filter-search").value.trim().toLowerCase();
+
+      return currentReport.findings.filter((f) => {
+        if (sevFilter !== "ALL" && f.severity !== sevFilter) return false;
+        if (catFilter !== "ALL" && f.category !== catFilter) return false;
+        if (owaspFilter !== "ALL" && f.owasp !== owaspFilter) return false;
+        if (q) {
+          const haystack = `${f.rule_id} ${f.title} ${f.file_path} ${f.code_snippet} ${f.context_snippet || ""} ${f.description} ${f.cwe} ${f.owasp || ""}`.toLowerCase();
+          if (!haystack.includes(q)) return false;
+        }
+        return true;
+      });
+    }
+
+    function buildPromptText(targetFindings) {
+      if (!currentReport) return "";
+      const scope = document.getElementById("prompt-scope").value;
+      const style = document.getElementById("prompt-style").value;
+      const includeSource =
+        currentReport.meta &&
+        currentReport.meta.mode === "snippet" &&
+        document.getElementById("prompt-include-source").checked;
+
+      const sevFilter = document.getElementById("filter-severity").value;
+      const catFilter = document.getElementById("filter-category").value;
+      const owaspFilter = document.getElementById("filter-owasp").value;
+      const q = document.getElementById("filter-search").value.trim();
+
+      if (
+        scope === "filtered" &&
+        style === "full" &&
+        !includeSource &&
+        sevFilter === "ALL" &&
+        catFilter === "ALL" &&
+        owaspFilter === "ALL" &&
+        !q &&
+        currentReport.ai_prompt
+      ) {
+        return currentReport.ai_prompt;
+      }
+
+      const items =
+        scope === "critical_high"
+          ? currentReport.findings.filter((f) => f.severity === "CRITICAL" || f.severity === "HIGH")
+          : targetFindings;
+
+      const meta = currentReport.meta || {};
+      const summary = currentReport.summary || {};
+      let targetLabel = `โปรเจกต์/ไฟล์: ${meta.target || "-"}`;
+      if (meta.mode === "web") {
+        targetLabel = `เว็บไซต์ URL: ${meta.url || "-"}${meta.is_apps_script ? " (Google Apps Script Web App)" : ""}`;
+      } else if (meta.mode === "snippet") {
+        targetLabel = `โค้ดไฟล์: ${meta.filename || "Code.gs"}`;
+      }
+
+      const lines = [
+        "คุณคือผู้เชี่ยวชาญด้าน Application Security (AppSec) และนักพัฒนาซอฟต์แวร์อาวุโส",
+        "โปรดช่วยตรวจสอบและแก้ไขจุดอ่อนด้านความปลอดภัยและคุณภาพโค้ดจากผลการสแกนด้านล่างนี้ให้ถูกต้อง ปลอดภัย และพร้อมใช้งานจริง (Production-Ready)",
+        "",
+        "## ข้อมูลเป้าหมายที่ตรวจสอบ",
+        `- ${targetLabel}`,
+        `- คะแนนความปลอดภัยปัจจุบัน: ${summary.score ?? 0}/100 (เกรด ${summary.grade ?? "-"})`,
+        "",
+      ];
+
+      if (items.length === 0) {
+        lines.push("ไม่พบรายการจุดอ่อนตามเงื่อนไขที่เลือก กรุณาช่วยตรวจสอบแนวทางป้องกันเชิงลึก (Defense-in-Depth) เพิ่มเติม");
+      } else {
+        lines.push(`## รายการจุดอ่อนที่ต้องการแก้ไข (${items.length} รายการ)`);
+        items.forEach((f, idx) => {
+          const cwePart = f.cwe ? ` / ${f.cwe}` : "";
+          const cvss = f.cvss_score ?? 0.0;
+          lines.push(`\n### ${idx + 1}. [${f.severity} | CVSS ${cvss}] (${f.rule_id}${cwePart}) ${f.title}`);
+          if (f.owasp) lines.push(`- มาตรฐาน OWASP: ${f.owasp}`);
+          lines.push(`- ตำแหน่ง: \`${f.file_path}:${f.line_number}\``);
+          if (f.context_snippet && f.context_snippet.includes("\n")) {
+            lines.push("- บริบทโค้ดที่พบ:", "```", f.context_snippet, "```");
+          } else if (f.code_snippet) {
+            lines.push(`- โค้ด/ค่าที่พบ: \`${f.code_snippet}\``);
+          }
+          if (f.description) lines.push(`- ความเสี่ยง: ${f.description}`);
+          if (f.remediation) lines.push(`- แนวทางแก้ไขเบื้องต้น: ${f.remediation}`);
+        });
+
+        lines.push("", "## สิ่งที่ต้องการให้ช่วยตอบกลับ");
+        if (style === "diff") {
+          lines.push("1. แสดงการเปรียบเทียบ **โค้ดเดิม vs โค้ดใหม่ที่ปลอดภัย (Before / After)** แยกทีละจุดอ่อน พร้อมคำอธิบายเหตุผล");
+        } else {
+          lines.push("1. **โค้ดฉบับแก้ไขสมบูรณ์** ที่ปิดจุดอ่อนทั้งหมดข้างต้นแล้ว พร้อมคอมเมนต์สั้นๆ อธิบายเฉพาะจุดสำคัญที่ปรับแก้ (รักษาฟังก์ชันการทำงานเดิมไว้ทั้งหมด)");
+        }
+        lines.push("2. **การตั้งค่าเพิ่มเติมที่จำเป็น** เช่น Security Headers, `.env` / `PropertiesService.getScriptProperties()`, หรือ `appsscript.json`");
+        lines.push("3. **รายการตรวจสอบซ้ำ (Verification Checklist)** หลังแก้ไข");
+      }
+
+      if (includeSource) {
+        const srcCode = document.getElementById("snippet-code-input").value.trim();
+        if (srcCode) {
+          lines.push("", `## โค้ดต้นฉบับ (${meta.filename || "Code.gs"})`, "```", srcCode, "```");
+        }
+      }
+
+      return lines.join("\n");
+    }
+
+    function buildSingleFindingPrompt(f) {
+      const meta = (currentReport && currentReport.meta) || {};
+      const cwePart = f.cwe ? ` / ${f.cwe}` : "";
+      const cvss = f.cvss_score ?? 0.0;
+      const targetDesc = meta.mode === "web" ? `เว็บไซต์ ${meta.url || "-"}` : `ไฟล์ ${f.file_path}`;
+      const lines = [
+        "คุณคือผู้เชี่ยวชาญด้าน Application Security (AppSec)",
+        `ช่วยแก้ไขจุดอ่อนด้านความปลอดภัยใน ${targetDesc} ตามรายละเอียดด้านล่างนี้:`,
+        "",
+        `- ปัญหา: [${f.severity} | CVSS ${cvss}] (${f.rule_id}${cwePart}) ${f.title}`,
+        `- มาตรฐาน OWASP: ${f.owasp || "-"}`,
+        `- ตำแหน่ง: \`${f.file_path}:${f.line_number}\``,
+      ];
+      if (f.context_snippet && f.context_snippet.includes("\n")) {
+        lines.push("- บริบทโค้ดที่พบ:", "```", f.context_snippet, "```");
+      } else if (f.code_snippet) {
+        lines.push(`- โค้ด/ค่าที่พบ: \`${f.code_snippet}\``);
+      }
+      if (f.description) lines.push(`- ความเสี่ยง: ${f.description}`);
+      if (f.remediation) lines.push(`- แนวทางแก้ไขแนะนำ: ${f.remediation}`);
+      lines.push(
+        "",
+        "กรุณาให้:",
+        "1. ตัวอย่างโค้ดหรือการตั้งค่าที่ปลอดภัยสำหรับแทนที่จุดนี้ทันที",
+        "2. คำอธิบายสั้นๆ ว่าทำไมวิธีใหม่ถึงปลอดภัยกว่า และจุดที่ต้องระวังเพิ่มเติม"
+      );
+      return lines.join("\n");
+    }
+
+    function updatePromptBox() {
+      document.getElementById("ai-prompt-textarea").value = buildPromptText(lastFilteredFindings);
+    }
+
+    async function copyTextWithFeedback(text, btn) {
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (_err) {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      if (btn) {
+        const original = btn.textContent;
+        btn.textContent = "✅ คัดลอกแล้ว!";
+        setTimeout(() => {
+          btn.textContent = original;
+        }, 1800);
+      }
+    }
+
+    function renderFindingsList() {
+      if (!currentReport) return;
+      const filtered = getFilteredFindings();
+      lastFilteredFindings = filtered;
+      updatePromptBox();
+
+      const listEl = document.getElementById("findings-list");
+      if (filtered.length === 0) {
+        listEl.innerHTML = `
+          <div class="panel empty-state">
+            ${currentReport.findings.length === 0
+              ? "✅ ยินดีด้วย! ไม่พบจุดอ่อนจากกฎการตรวจสอบในเป้าหมายนี้"
+              : "ไม่พบรายการที่ตรงกับตัวกรองที่เลือก"}
+          </div>`;
+        return;
+      }
+
+      listEl.innerHTML = filtered
+        .map((f, idx) => {
+          const displayCode = (f.context_snippet && f.context_snippet.trim()) ? f.context_snippet : f.code_snippet;
+          const owaspShort = f.owasp ? f.owasp.split(":")[0] : "";
+          return `
+          <div class="finding-card sev-${escapeHtml(f.severity)}">
+            <div class="finding-header">
+              <h3 class="finding-title">${escapeHtml(f.title)}</h3>
+              <div class="badges">
+                <span class="tag sev-${escapeHtml(f.severity)}">${escapeHtml(f.severity)}</span>
+                <span class="tag cvss">CVSS ${escapeHtml(f.cvss_score ?? 0)}</span>
+                ${owaspShort ? `<span class="tag owasp" title="${escapeHtml(f.owasp)}">${escapeHtml(owaspShort)}</span>` : ""}
+                <span class="tag">${escapeHtml(f.rule_id)}</span>
+                <span class="tag">${escapeHtml(f.category)}</span>
+                ${f.cwe ? `<span class="tag">${escapeHtml(f.cwe)}</span>` : ""}
+                ${f.confidence ? `<span class="tag">Conf: ${escapeHtml(f.confidence)}</span>` : ""}
+              </div>
+            </div>
+            <div class="location">📄 ${escapeHtml(f.file_path)} : บรรทัด ${escapeHtml(f.line_number)}</div>
+            ${displayCode ? `<pre class="code-box">${escapeHtml(displayCode)}</pre>` : ""}
+            <div class="detail-block"><strong>ความเสี่ยง:</strong> ${escapeHtml(f.description)}</div>
+            <div class="remediation-box"><strong>วิธีแก้ไข:</strong> ${escapeHtml(f.remediation)}</div>
+            <div class="finding-actions">
+              <button class="btn btn-secondary btn-mini copy-single-prompt-btn" data-index="${idx}" type="button">🤖 คัดลอก Prompt แก้จุดนี้</button>
+            </div>
+          </div>
+        `;
+        })
+        .join("");
+
+      listEl.querySelectorAll(".copy-single-prompt-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const item = lastFilteredFindings[Number(btn.dataset.index)];
+          if (item) {
+            copyTextWithFeedback(buildSingleFindingPrompt(item), btn);
+          }
+        });
+      });
+    }
+
+    document.getElementById("filter-severity").addEventListener("change", renderFindingsList);
+    document.getElementById("filter-category").addEventListener("change", renderFindingsList);
+    document.getElementById("filter-owasp").addEventListener("change", () => {
+      if (currentReport && currentReport.summary) {
+        renderOwaspMatrix(currentReport.summary.owasp_matrix || []);
+      }
+      renderFindingsList();
+    });
+    document.getElementById("filter-search").addEventListener("input", renderFindingsList);
+    document.getElementById("prompt-scope").addEventListener("change", updatePromptBox);
+    document.getElementById("prompt-style").addEventListener("change", updatePromptBox);
+    document.getElementById("prompt-include-source").addEventListener("change", updatePromptBox);
+
+    document.getElementById("toggle-prompt-btn").addEventListener("click", () => {
+      const panel = document.getElementById("ai-prompt-panel");
+      panel.style.display = panel.style.display === "none" ? "block" : "none";
+    });
+
+    document.getElementById("copy-prompt-btn").addEventListener("click", (e) => {
+      copyTextWithFeedback(document.getElementById("ai-prompt-textarea").value, e.currentTarget);
+    });
+
+    document.getElementById("copy-prompt-inner-btn").addEventListener("click", (e) => {
+      copyTextWithFeedback(document.getElementById("ai-prompt-textarea").value, e.currentTarget);
+    });
+
+    document.getElementById("download-prompt-btn").addEventListener("click", () => {
+      const text = document.getElementById("ai-prompt-textarea").value;
+      if (!text) return;
+      const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "ai-fix-prompt.txt";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById("export-html-btn").addEventListener("click", () => {
+      if (!currentReport) return;
+      const { summary, findings, meta } = currentReport;
+      const targetText = meta.url || meta.filename || meta.target || "-";
+      const rows = findings.map((f, i) => {
+        const displayCode = (f.context_snippet && f.context_snippet.trim()) ? f.context_snippet : f.code_snippet;
+        return `
+        <div style="border:1px solid #cbd5e1;border-left:5px solid #0284c7;border-radius:8px;padding:12px;margin-bottom:12px;">
+          <div><strong>${i + 1}. [${escapeHtml(f.severity)} | CVSS ${escapeHtml(f.cvss_score ?? 0)}] (${escapeHtml(f.rule_id)}${f.cwe ? " / " + escapeHtml(f.cwe) : ""}) ${escapeHtml(f.title)}</strong></div>
+          <div style="font-size:0.88rem;color:#475569;margin-top:4px;">${escapeHtml(f.owasp || "")}</div>
+          <div style="font-family:monospace;color:#0369a1;margin:6px 0;">${escapeHtml(f.file_path)}:${escapeHtml(f.line_number)}</div>
+          ${displayCode ? `<pre style="background:#f8fafc;padding:8px;border-radius:6px;overflow:auto;">${escapeHtml(displayCode)}</pre>` : ""}
+          <div><strong>ความเสี่ยง:</strong> ${escapeHtml(f.description)}</div>
+          <div style="margin-top:6px;color:#166534;"><strong>วิธีแก้ไข:</strong> ${escapeHtml(f.remediation)}</div>
+        </div>
+      `;
+      }).join("");
+
+      const htmlDoc = `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>Vulnerability Report</title></head>
+        <body style="font-family:system-ui,sans-serif;max-width:960px;margin:28px auto;padding:0 16px;color:#0f172a;">
+          <h1>รายงานตรวจสอบความปลอดภัย (Vulnerability Audit Report)</h1>
+          <p><strong>เป้าหมาย:</strong> ${escapeHtml(targetText)}<br>
+             <strong>คะแนนความปลอดภัย:</strong> ${escapeHtml(summary.score)}/100 (เกรด ${escapeHtml(summary.grade)})<br>
+             <strong>จำนวนจุดอ่อนทั้งหมด:</strong> ${escapeHtml(summary.total_findings)} รายการ</p>
+          <hr>${rows || "<p>ไม่พบจุดอ่อน</p>"}
+        </body></html>`;
+
+      const blob = new Blob([htmlDoc], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "vulnerability-report.html";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById("export-md-btn").addEventListener("click", () => {
+      if (!currentReport) return;
+      const md = currentReport.markdown_report || "";
+      const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "vulnerability-report.md";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById("export-json-btn").addEventListener("click", () => {
+      if (!currentReport) return;
+      const blob = new Blob([JSON.stringify(currentReport, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "vulnerability-report.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById("print-btn").addEventListener("click", () => {
+      window.print();
+    });
+
+    function renderHardeningSnippets(snippets) {
+      const sec = document.getElementById("hardening-section");
+      const list = document.getElementById("hardening-list");
+      if (!snippets || snippets.length === 0) {
+        sec.style.display = "none";
+        return;
+      }
+      sec.style.display = "block";
+      list.innerHTML = snippets.map((s, idx) => `
+        <div class="snippet-card">
+          <div class="snippet-head">
+            <strong>${escapeHtml(s.title)}</strong>
+            <button class="btn btn-secondary btn-mini copy-hardening-btn" data-idx="${idx}" type="button">📋 คัดลอกโค้ด</button>
+          </div>
+          <pre class="code-box" style="margin-bottom:0;">${escapeHtml(s.code)}</pre>
+        </div>
+      `).join("");
+
+      list.querySelectorAll(".copy-hardening-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const item = snippets[Number(btn.dataset.idx)];
+          if (item) copyTextWithFeedback(item.code, btn);
+        });
+      });
+    }
+
+    async function loadHistory() {
+      let historyItems = [];
+      try {
+        const { data } = await tryApiJson("/api/history");
+        if (data.success && Array.isArray(data.history)) historyItems = data.history;
+      } catch (err) {
+        if (err instanceof StaticModeError) {
+          historyItems = ClientEngine.listHistory();
+        }
+      }
+
+      const listEl = document.getElementById("history-list");
+      if (!historyItems || historyItems.length === 0) {
+        listEl.innerHTML = `<div class="hint">ยังไม่มีประวัติการสแกน</div>`;
+        return;
+      }
+      const currentId = currentReport && currentReport.meta ? currentReport.meta.scan_id : null;
+      listEl.innerHTML = historyItems.map((item) => {
+        const isCurrent = currentId && item.id === currentId;
+        return `
+          <div class="history-item">
+            <div>
+              <strong>[${escapeHtml(item.mode.toUpperCase())}] ${escapeHtml(item.target_name)}</strong>
+              ${isCurrent ? `<span class="tag" style="margin-left:6px;color:var(--accent);">ผลปัจจุบัน</span>` : ""}
+              <div class="history-meta">
+                🕒 ${escapeHtml(item.timestamp)} • คะแนน ${escapeHtml(item.score)}/100 (เกรด ${escapeHtml(item.grade)}) • พบ ${escapeHtml(item.total_findings)} จุด
+              </div>
+            </div>
+            <div class="actions">
+              <button class="btn btn-secondary btn-mini view-history-btn" data-id="${escapeHtml(item.id)}" type="button">👁️ ดูผล</button>
+              ${currentId && !isCurrent ? `<button class="btn btn-demo btn-mini compare-history-btn" data-id="${escapeHtml(item.id)}" type="button">⚖️ เปรียบเทียบกับผลปัจจุบัน</button>` : ""}
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      listEl.querySelectorAll(".view-history-btn").forEach((btn) => {
+        btn.addEventListener("click", () => loadHistoryRecord(btn.dataset.id));
+      });
+      listEl.querySelectorAll(".compare-history-btn").forEach((btn) => {
+        btn.addEventListener("click", () => compareWithCurrent(btn.dataset.id));
+      });
+    }
+
+    async function loadHistoryRecord(scanId) {
+      try {
+        const { res, data } = await tryApiJson(`/api/history/${encodeURIComponent(scanId)}`);
+        if (res.ok && data.success) {
+          showBanner("", "");
+          renderReport(data);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      } catch (err) {
+        if (err instanceof StaticModeError) {
+          const rec = ClientEngine.getHistoryRecord(scanId);
+          if (rec) {
+            showBanner("", "");
+            renderReport({ success: true, ...rec });
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }
+          return;
+        }
+        showBanner("error", "ไม่สามารถโหลดประวัติได้: " + err.message);
+      }
+    }
+
+    async function compareWithCurrent(baseId) {
+      if (!currentReport || !currentReport.meta || !currentReport.meta.scan_id) return;
+      try {
+        let cmp;
+        try {
+          const { res, data } = await tryApiJson("/api/compare", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              base_id: baseId,
+              target_id: currentReport.meta.scan_id,
+            }),
+          });
+          if (!res.ok || !data.success) {
+            showBanner("error", data.error || "ไม่สามารถเปรียบเทียบได้");
+            return;
+          }
+          cmp = data.comparison;
+        } catch (err) {
+          if (err instanceof StaticModeError) {
+            const baseRec = ClientEngine.getHistoryRecord(baseId);
+            if (!baseRec) {
+              showBanner("error", "ไม่พบประวัติการสแกนที่ต้องการเปรียบเทียบ");
+              return;
+            }
+            cmp = ClientEngine.compareScans(baseRec, currentReport);
+          } else {
+            throw err;
+          }
+        }
+        const diffSign = cmp.score_diff > 0 ? `+${cmp.score_diff}` : `${cmp.score_diff}`;
+        const diffColor = cmp.score_diff >= 0 ? "#4ade80" : "#f87171";
+        const card = document.getElementById("comparison-card");
+        card.style.display = "block";
+        card.innerHTML = `
+          <div class="section-title">
+            <span>⚖️ ผลการเปรียบเทียบก่อน-หลังแก้ไข (Before vs After)</span>
+            <button class="btn btn-secondary btn-mini" id="close-compare-btn" type="button">ปิด</button>
+          </div>
+          <div class="compare-grid">
+            <div class="compare-stat">
+              <div class="big" style="color:${diffColor};">${escapeHtml(diffSign)} คะแนน</div>
+              <div class="hint" style="margin:0;">${escapeHtml(cmp.old_score)} (เกรด ${escapeHtml(cmp.old_grade)}) → ${escapeHtml(cmp.new_score)} (เกรด ${escapeHtml(cmp.new_grade)})</div>
+            </div>
+            <div class="compare-stat">
+              <div class="big" style="color:#4ade80;">✅ ${escapeHtml(cmp.resolved_count)}</div>
+              <div class="hint" style="margin:0;">จุดอ่อนที่แก้ไขแล้ว</div>
+            </div>
+            <div class="compare-stat">
+              <div class="big" style="color:#facc15;">⚠️ ${escapeHtml(cmp.remaining_count)}</div>
+              <div class="hint" style="margin:0;">จุดอ่อนที่ยังคงเหลือ</div>
+            </div>
+            <div class="compare-stat">
+              <div class="big" style="color:#f87171;">🆕 ${escapeHtml(cmp.new_count)}</div>
+              <div class="hint" style="margin:0;">จุดอ่อนที่พบใหม่</div>
+            </div>
+          </div>
+          ${cmp.resolved_findings.length > 0 ? `<div class="remediation-box"><strong>รายการที่แก้ไขสำเร็จแล้ว:</strong> ${cmp.resolved_findings.map((f) => `${escapeHtml(f.rule_id)} (${escapeHtml(f.file_path)})`).join(", ")}</div>` : ""}
+        `;
+        document.getElementById("close-compare-btn").addEventListener("click", () => {
+          card.style.display = "none";
+        });
+        card.scrollIntoView({ behavior: "smooth", block: "center" });
+      } catch (err) {
+        showBanner("error", "เกิดข้อผิดพลาดในการเปรียบเทียบ: " + err.message);
+      }
+    }
+
+    document.getElementById("refresh-history-btn").addEventListener("click", loadHistory);
+    loadHistory();
+  </script>
+</body>
+</html>
+
